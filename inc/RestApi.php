@@ -720,7 +720,10 @@ class RestApi {
 	}
 
 	/**
-	 * Get authentication status for all platforms
+	 * Get authentication status for all social platforms.
+	 *
+	 * Kept for backward compatibility. Prefer GET /platforms which
+	 * returns auth status alongside platform config in one response.
 	 */
 	public static function get_auth_status() {
 		$auth_abilities = new AuthAbilities();
@@ -728,15 +731,16 @@ class RestApi {
 
 		$statuses = array();
 
-		$platforms = array( 'instagram', 'twitter', 'facebook', 'bluesky', 'threads', 'pinterest', 'reddit' );
-
-		foreach ( $platforms as $platform ) {
-			$provider = $providers[ $platform ] ?? null;
+		foreach ( $providers as $key => $provider ) {
+			// Only include social auth providers (from this plugin's namespace).
+			if ( strpos( get_class( $provider ), 'DataMachineSocials\\' ) === false ) {
+				continue;
+			}
 
 			$statuses[] = array(
-				'platform'      => $platform,
-				'authenticated' => $provider ? $provider->is_authenticated() : false,
-				'username'      => $provider ? $provider->get_username() : null,
+				'platform'      => $key,
+				'authenticated' => $provider->is_authenticated(),
+				'username'      => $provider->get_username(),
 			);
 		}
 
@@ -744,68 +748,51 @@ class RestApi {
 	}
 
 	/**
-	 * Get platform configurations
+	 * Get platform configurations with auth status.
+	 *
+	 * Assembles from DM core's handler registry — each social handler
+	 * self-declares its constraints via the $meta parameter in registerHandler().
+	 * Auth status is folded in from the auth providers filter.
 	 */
 	public static function get_platforms() {
-		// Return platform configurations from registry
-		$platforms = array(
-			'instagram' => array(
-				'label'              => 'Instagram',
-				'maxImages'          => 10,
-				'aspectRatios'       => array( '1:1', '4:5', '3:4', '1.91:1' ),
-				'defaultAspectRatio' => '4:5',
-				'charLimit'          => 2200,
-				'supportsCarousel'   => true,
-				'supportsVideo'      => true,
-				'supportedMediaKinds' => array( 'image', 'carousel', 'reel', 'story' ),
-			),
-			'twitter'   => array(
-				'label'              => 'Twitter / X',
-				'maxImages'          => 4,
-				'aspectRatios'       => array( 'any' ),
-				'defaultAspectRatio' => 'any',
-				'charLimit'          => 280,
-				'supportsCarousel'   => false,
-			),
-			'facebook'  => array(
-				'label'              => 'Facebook',
-				'maxImages'          => 10,
-				'aspectRatios'       => array( 'any' ),
-				'defaultAspectRatio' => 'any',
-				'charLimit'          => 63206,
-				'supportsCarousel'   => true,
-			),
-			'bluesky'   => array(
-				'label'              => 'Bluesky',
-				'maxImages'          => 4,
-				'aspectRatios'       => array( 'any' ),
-				'defaultAspectRatio' => 'any',
-				'charLimit'          => 300,
-				'supportsCarousel'   => false,
-			),
-			'threads'   => array(
-				'label'              => 'Threads',
-				'maxImages'          => 10,
-				'aspectRatios'       => array( 'any' ),
-				'defaultAspectRatio' => 'any',
-				'charLimit'          => 500,
-				'supportsCarousel'   => true,
-			),
-			'pinterest' => array(
-				'label'              => 'Pinterest',
-				'maxImages'          => 1,
-				'aspectRatios'       => array( '2:3' ),
-				'defaultAspectRatio' => '2:3',
-				'charLimit'          => 500,
-				'supportsCarousel'   => false,
-			),
-			'reddit'    => array(
-				'label'     => 'Reddit',
-				'type'      => 'fetch',
-				'charLimit' => 40000,
-				'scopes'    => 'identity read',
-			),
-		);
+		$handler_abilities = new \DataMachine\Abilities\HandlerAbilities();
+		$auth_abilities    = new AuthAbilities();
+		$providers         = $auth_abilities->getAllProviders();
+
+		// Get all handlers that registered via HandlerRegistrationTrait.
+		$all_handlers = $handler_abilities->getAllHandlers();
+
+		$platforms = array();
+
+		foreach ( $all_handlers as $slug => $handler ) {
+			$auth_key = $handler['auth_provider_key'] ?? $slug;
+			$provider = $providers[ $auth_key ] ?? null;
+
+			// Skip handlers without an auth provider.
+			if ( ! $provider ) {
+				continue;
+			}
+
+			// Only include handlers whose auth provider is from this plugin.
+			$provider_class = get_class( $provider );
+			if ( strpos( $provider_class, 'DataMachineSocials\\' ) === false ) {
+				continue;
+			}
+
+			$meta = $handler['meta'] ?? array();
+
+			$platforms[ $auth_key ] = array_merge(
+				array(
+					'label' => $handler['label'] ?? $auth_key,
+					'type'  => $handler['type'] ?? 'publish',
+				),
+				$meta,
+				array(
+					'authenticated' => $provider->is_authenticated(),
+					'username'      => $provider->get_username(),
+				)
+			);
+		}
 
 		return new \WP_REST_Response( $platforms );
 	}
