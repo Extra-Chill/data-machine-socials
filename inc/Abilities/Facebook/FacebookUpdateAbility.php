@@ -14,6 +14,8 @@ namespace DataMachineSocials\Abilities\Facebook;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Facebook\FacebookAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Facebook\FacebookDeleteAbility;
 
 defined( 'ABSPATH' ) || exit;
 

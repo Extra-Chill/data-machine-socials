@@ -203,8 +203,8 @@ class TwitterPublishAbility {
 			$http_code = $connection->getLastHttpCode();
 
 			if ( 201 === $http_code && isset( $response->data->id ) ) {
-				$tweet_id = $response->data->id;
-				$username = $provider->get_username() ?? 'twitter';
+				$tweet_id  = $response->data->id;
+				$username  = $provider->get_username() ?? 'twitter';
 				$tweet_url = "https://twitter.com/{$username}/status/{$tweet_id}";
 
 				$result = array(

@@ -179,16 +179,16 @@ class LinkedInPublishAbility {
 
 		// Build post payload.
 		$payload = array(
-			'author'                      => $person_urn,
-			'commentary'                  => $content,
-			'visibility'                  => $visibility,
-			'distribution'                => array(
+			'author'                    => $person_urn,
+			'commentary'                => $content,
+			'visibility'                => $visibility,
+			'distribution'              => array(
 				'feedDistribution'               => 'MAIN_FEED',
 				'targetEntities'                 => array(),
 				'thirdPartyDistributionChannels' => array(),
 			),
-			'lifecycleState'              => 'PUBLISHED',
-			'isReshareDisabledByAuthor'   => false,
+			'lifecycleState'            => 'PUBLISHED',
+			'isReshareDisabledByAuthor' => false,
 		);
 
 		try {
@@ -292,6 +292,7 @@ class LinkedInPublishAbility {
 	 * @return string|null Image URN on success, null on failure.
 	 */
 	private static function upload_image( LinkedInAuth $provider, string $owner_urn, string $image_path ): ?string {
+		global $wp_filesystem;
 		if ( ! file_exists( $image_path ) ) {
 			return null;
 		}
@@ -322,7 +323,7 @@ class LinkedInPublishAbility {
 			return null;
 		}
 
-		$init_data = json_decode( $init_result['data'], true );
+		$init_data  = json_decode( $init_result['data'], true );
 		$upload_url = $init_data['value']['uploadUrl'] ?? null;
 		$image_urn  = $init_data['value']['image'] ?? null;
 
@@ -337,7 +338,7 @@ class LinkedInPublishAbility {
 		}
 
 		// Step 2: Upload the binary image.
-		$file_contents = file_get_contents( $image_path );
+		$file_contents = $wp_filesystem->get_contents( $image_path );
 		if ( false === $file_contents ) {
 			return null;
 		}

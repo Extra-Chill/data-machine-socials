@@ -122,10 +122,10 @@ class LinkedIn extends PublishHandler {
 
 		$result = LinkedInPublishAbility::execute_publish(
 			array(
-				'content'     => $parameters['content'] ?? '',
-				'image_path'  => $media_path,
-				'source_url'  => $engine->getSourceUrl(),
-				'visibility'  => $handler_config['visibility'] ?? 'PUBLIC',
+				'content'    => $parameters['content'] ?? '',
+				'image_path' => $media_path,
+				'source_url' => $engine->getSourceUrl(),
+				'visibility' => $handler_config['visibility'] ?? 'PUBLIC',
 			)
 		);
 

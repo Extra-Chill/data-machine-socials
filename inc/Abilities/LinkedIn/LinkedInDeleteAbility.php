@@ -15,6 +15,8 @@ namespace DataMachineSocials\Abilities\LinkedIn;
 use DataMachine\Abilities\AuthAbilities;
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\LinkedIn\LinkedInAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\LinkedIn\LinkedInReadAbility;
 
 defined( 'ABSPATH' ) || exit;
 

@@ -17,6 +17,8 @@
 namespace DataMachineSocials\Handlers\Pinterest;
 
 use DataMachine\Core\HttpClient;
+use DataMachineSocials\Handlers\LinkedIn\LinkedInAuth;
+use DataMachineSocials\Handlers\Traits\HasRemoveAccount;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

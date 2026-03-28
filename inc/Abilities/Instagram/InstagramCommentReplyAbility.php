@@ -13,6 +13,8 @@ namespace DataMachineSocials\Abilities\Instagram;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Instagram\InstagramAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Instagram\InstagramDeleteAbility;
 
 defined( 'ABSPATH' ) || exit;
 

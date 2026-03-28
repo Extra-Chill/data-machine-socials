@@ -14,6 +14,8 @@ namespace DataMachineSocials\Abilities\Threads;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Threads\ThreadsAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Threads\ThreadsDeleteAbility;
 
 defined( 'ABSPATH' ) || exit;
 

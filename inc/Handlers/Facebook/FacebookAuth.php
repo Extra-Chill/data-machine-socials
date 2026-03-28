@@ -13,6 +13,9 @@
 namespace DataMachineSocials\Handlers\Facebook;
 
 use DataMachine\Core\HttpClient;
+use DataMachineSocials\Handlers\Traits\HasGetAccountDetails;
+use DataMachineSocials\Handlers\Threads\ThreadsAuth;
+use DataMachineSocials\Handlers\Threads\ThreadsAuth;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

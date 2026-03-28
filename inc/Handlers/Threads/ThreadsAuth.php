@@ -13,6 +13,7 @@
 namespace DataMachineSocials\Handlers\Threads;
 
 use DataMachine\Core\HttpClient;
+use DataMachineSocials\Handlers\Traits\HasGetAccountDetails;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

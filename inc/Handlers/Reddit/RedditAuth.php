@@ -18,6 +18,7 @@
 namespace DataMachineSocials\Handlers\Reddit;
 
 use DataMachine\Core\HttpClient;
+use DataMachineSocials\Handlers\Traits\HasRemoveAccount;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

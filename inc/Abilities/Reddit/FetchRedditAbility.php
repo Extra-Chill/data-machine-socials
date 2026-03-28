@@ -15,6 +15,7 @@
 namespace DataMachineSocials\Abilities\Reddit;
 
 use DataMachine\Abilities\PermissionHelper;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -174,7 +175,7 @@ class FetchRedditAbility {
 		$download_images       = $config['download_images'];
 
 		// Determine mode: global search vs subreddit fetch.
-		$is_global_search = ! empty( $query ) && empty( $subreddit );
+		$is_global_search    = ! empty( $query ) && empty( $subreddit );
 		$is_subreddit_search = ! empty( $query ) && ! empty( $subreddit );
 
 		// Validate: must have either subreddit or query.
@@ -225,8 +226,8 @@ class FetchRedditAbility {
 			'level'   => 'info',
 			'message' => sprintf( 'Reddit: Starting fetch (%s, sort: %s).', $mode_label, $sort ),
 			'data'    => array(
-				'subreddit'       => $subreddit,
-				'query'           => $query,
+				'subreddit'        => $subreddit,
+				'query'            => $query,
 				'is_global_search' => $is_global_search,
 			),
 		);

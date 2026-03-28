@@ -15,6 +15,7 @@ namespace DataMachineSocials\Handlers\Bluesky;
 
 use DataMachine\Core\OAuth\BaseAuthProvider;
 use DataMachine\Core\HttpClient;
+use DataMachineSocials\Handlers\Traits\HasRemoveAccount;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly

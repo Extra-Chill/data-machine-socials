@@ -14,6 +14,8 @@ namespace DataMachineSocials\Abilities\Pinterest;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Pinterest\PinterestAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Pinterest\PinterestDeleteAbility;
 
 defined( 'ABSPATH' ) || exit;
 

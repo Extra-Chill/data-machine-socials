@@ -13,6 +13,7 @@ namespace DataMachineSocials\ImageGeneration\Templates;
 
 use DataMachine\Abilities\Media\GDRenderer;
 use DataMachine\Abilities\Media\TemplateInterface;
+use DataMachineSocials\ImageGeneration\Templates\QuoteCard;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

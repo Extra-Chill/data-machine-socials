@@ -14,6 +14,8 @@ namespace DataMachineSocials\Abilities\Bluesky;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Bluesky\BlueskyAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Bluesky\BlueskyDeleteAbility;
 
 defined( 'ABSPATH' ) || exit;
 

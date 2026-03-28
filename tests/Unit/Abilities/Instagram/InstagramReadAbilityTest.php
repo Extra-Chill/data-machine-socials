@@ -13,6 +13,7 @@ namespace DataMachineSocials\Tests\Unit\Abilities\Instagram;
 use DataMachineSocials\Abilities\Instagram\InstagramReadAbility;
 use DataMachineSocials\Handlers\Instagram\InstagramAuth;
 use WP_UnitTestCase;
+use DataMachineSocials\Tests\Unit\Abilities\Instagram\InstagramPublishReelTest;
 
 class InstagramReadAbilityTest extends WP_UnitTestCase {
 

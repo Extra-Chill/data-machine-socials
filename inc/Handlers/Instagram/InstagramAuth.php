@@ -13,6 +13,9 @@
 namespace DataMachineSocials\Handlers\Instagram;
 
 use DataMachine\Core\HttpClient;
+use DataMachineSocials\Handlers\Traits\HasGetAccountDetails;
+use DataMachineSocials\Handlers\Threads\ThreadsAuth;
+use DataMachineSocials\Handlers\Traits\HasRemoveAccount;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

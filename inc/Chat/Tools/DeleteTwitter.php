@@ -59,7 +59,7 @@ class DeleteTwitter extends BaseTool {
 		if ( ! $ability ) {
 			return $this->buildErrorResponse( 'datamachine/twitter-delete ability not registered', $tool_name );
 		}
-		$result  = $ability->execute( array( 'tweet_id' => $parameters['tweet_id'] ) );
+		$result = $ability->execute( array( 'tweet_id' => $parameters['tweet_id'] ) );
 
 		if ( $result['success'] ) {
 			return array(

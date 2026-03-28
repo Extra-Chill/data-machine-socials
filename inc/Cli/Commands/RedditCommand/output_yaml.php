@@ -1,0 +1,615 @@
+//! output_yaml — extracted from RedditCommand.php.
+
+
+	/**
+	 * Get subreddit information and statistics.
+	 *
+	 * Returns subscriber count, description, creation date, and activity
+	 * metrics for a subreddit. Use this to understand a subreddit's size
+	 * and set appropriate thresholds for flow configuration.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <subreddit>
+	 * : The subreddit name (without "r/").
+	 *
+	 * [--format=<format>]
+	 * : Output format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp datamachine-socials reddit info bonnaroo
+	 *     wp datamachine-socials reddit info festivals --format=json
+	 *     wp datamachine-socials reddit info jambands --format=yaml
+	 *
+	 * @subcommand info
+	 */
+	public function info( $args, $assoc_args ) {
+		$subreddit = $args[0];
+		$format    = $assoc_args['format'] ?? 'table';
+
+		WP_CLI::log( "Fetching info for r/{$subreddit}..." );
+
+		$result = $this->reddit_api_get( "/r/{$subreddit}/about" );
+		$data   = $result['data'] ?? array();
+
+		$info = array(
+			'name'           => $data['display_name'] ?? $subreddit,
+			'title'          => $data['title'] ?? '',
+			'description'    => $data['public_description'] ?? '',
+			'subscribers'    => $data['subscribers'] ?? 0,
+			'active_users'   => $data['accounts_active'] ?? 0,
+			'created'        => ! empty( $data['created_utc'] ) ? wp_date( 'Y-m-d', intval( $data['created_utc'] ) ) : 'unknown',
+			'over_18'        => ! empty( $data['over18'] ) ? 'yes' : 'no',
+			'subreddit_type' => $data['subreddit_type'] ?? 'unknown',
+			'url'            => 'https://www.reddit.com/r/' . ( $data['display_name'] ?? $subreddit ),
+		);
+
+		if ( 'json' === $format ) {
+			WP_CLI::log( wp_json_encode( $info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+			return;
+		}
+
+		if ( 'yaml' === $format ) {
+			$this->output_yaml( $info );
+			return;
+		}
+
+		// Table format.
+		WP_CLI::success( "r/{$subreddit}" );
+		WP_CLI::log( '' );
+		WP_CLI::log( 'Name:         ' . $info['name'] );
+		WP_CLI::log( 'Title:        ' . $info['title'] );
+		WP_CLI::log( 'Subscribers:  ' . number_format( $info['subscribers'] ) );
+		WP_CLI::log( 'Active now:   ' . number_format( $info['active_users'] ) );
+		WP_CLI::log( 'Created:      ' . $info['created'] );
+		WP_CLI::log( 'Type:         ' . $info['subreddit_type'] );
+		WP_CLI::log( 'NSFW:         ' . $info['over_18'] );
+		WP_CLI::log( 'URL:          ' . $info['url'] );
+
+		if ( ! empty( $info['description'] ) ) {
+			WP_CLI::log( '' );
+			WP_CLI::log( 'Description:' );
+			WP_CLI::log( $info['description'] );
+		}
+	}
+
+	/**
+	 * Search for subreddits by keyword.
+	 *
+	 * Find subreddits matching a search query. Returns name, subscriber
+	 * count, and description for each match. Useful for discovering new
+	 * data sources for flows.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <query>
+	 * : Search query to find subreddits.
+	 *
+	 * [--limit=<limit>]
+	 * : Maximum number of results.
+	 * ---
+	 * default: 10
+	 * ---
+	 *
+	 * [--format=<format>]
+	 * : Output format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp datamachine-socials reddit search "music festivals"
+	 *     wp datamachine-socials reddit search "jam bands" --limit=20
+	 *     wp datamachine-socials reddit search "electronic music" --format=json
+	 */
+	public function search( $args, $assoc_args ) {
+		$query  = $args[0];
+		$limit  = absint( $assoc_args['limit'] ?? 10 );
+		$format = $assoc_args['format'] ?? 'table';
+
+		WP_CLI::log( "Searching subreddits for \"{$query}\"..." );
+
+		$result   = $this->reddit_api_get( '/subreddits/search', array(
+			'q'     => $query,
+			'limit' => min( $limit, 100 ),
+			'sort'  => 'relevance',
+			'type'  => 'sr',
+		) );
+		$children = $result['data']['children'] ?? array();
+
+		if ( empty( $children ) ) {
+			WP_CLI::warning( 'No subreddits found for "' . $query . '".' );
+			return;
+		}
+
+		$rows = array();
+		foreach ( $children as $child ) {
+			$sub    = $child['data'] ?? array();
+			$rows[] = array(
+				'subreddit'   => 'r/' . ( $sub['display_name'] ?? '' ),
+				'subscribers' => $sub['subscribers'] ?? 0,
+				'active'      => $sub['accounts_active'] ?? 0,
+				'nsfw'        => ! empty( $sub['over18'] ) ? 'yes' : 'no',
+				'description' => mb_substr( $sub['public_description'] ?? '', 0, 80 ),
+			);
+		}
+
+		if ( 'json' === $format ) {
+			WP_CLI::log( wp_json_encode( $rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+			return;
+		}
+
+		if ( 'yaml' === $format ) {
+			$this->output_yaml( $rows );
+			return;
+		}
+
+		WP_CLI::success( count( $rows ) . ' subreddits found for "' . $query . '"' );
+		WP_CLI\Utils\format_items( 'table', $rows, array( 'subreddit', 'subscribers', 'active', 'nsfw', 'description' ) );
+	}
+
+	/**
+	 * List posts from a subreddit with scores.
+	 *
+	 * Unlike `fetch` which returns a single processed post, `posts` returns
+	 * a table of multiple posts with their scores, comment counts, and ages.
+	 * Use this to understand a subreddit's score distribution and set
+	 * appropriate min_upvotes thresholds.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <subreddit>
+	 * : The subreddit name (without "r/").
+	 *
+	 * [--sort=<sort>]
+	 * : Sort order for posts.
+	 * ---
+	 * default: top
+	 * options:
+	 *   - hot
+	 *   - new
+	 *   - top
+	 *   - rising
+	 *   - controversial
+	 * ---
+	 *
+	 * [--timeframe=<timeframe>]
+	 * : Time period for top/controversial sort.
+	 * ---
+	 * default: week
+	 * options:
+	 *   - hour
+	 *   - day
+	 *   - week
+	 *   - month
+	 *   - year
+	 *   - all
+	 * ---
+	 *
+	 * [--limit=<limit>]
+	 * : Number of posts to return.
+	 * ---
+	 * default: 25
+	 * ---
+	 *
+	 * [--format=<format>]
+	 * : Output format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 *   - csv
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp datamachine-socials reddit posts bonnaroo
+	 *     wp datamachine-socials reddit posts sxsw --sort=top --timeframe=month
+	 *     wp datamachine-socials reddit posts festivals --limit=50 --format=json
+	 *     wp datamachine-socials reddit posts jambands --sort=hot
+	 */
+	public function posts( $args, $assoc_args ) {
+		$subreddit = $args[0];
+		$sort      = $assoc_args['sort'] ?? 'top';
+		$timeframe = $assoc_args['timeframe'] ?? 'week';
+		$limit     = absint( $assoc_args['limit'] ?? 25 );
+		$format    = $assoc_args['format'] ?? 'table';
+
+		WP_CLI::log( "Listing posts from r/{$subreddit} (sort: {$sort}, timeframe: {$timeframe})..." );
+
+		$params = array(
+			'limit' => min( $limit, 100 ),
+		);
+
+		// Reddit only uses the 't' parameter for top and controversial sorts.
+		if ( in_array( $sort, array( 'top', 'controversial' ), true ) ) {
+			$params['t'] = $timeframe;
+		}
+
+		$result   = $this->reddit_api_get( "/r/{$subreddit}/{$sort}", $params );
+		$children = $result['data']['children'] ?? array();
+
+		if ( empty( $children ) ) {
+			WP_CLI::warning( "No posts found in r/{$subreddit}." );
+			return;
+		}
+
+		$rows = array();
+		foreach ( $children as $child ) {
+			$post = $child['data'] ?? array();
+
+			// Skip stickied/pinned mod posts.
+			if ( ! empty( $post['stickied'] ) || ! empty( $post['pinned'] ) ) {
+				continue;
+			}
+
+			$age_hours = ! empty( $post['created_utc'] ) ? round( ( time() - $post['created_utc'] ) / 3600 ) : 0;
+			if ( $age_hours >= 24 ) {
+				$age = round( $age_hours / 24 ) . 'd';
+			} else {
+				$age = $age_hours . 'h';
+			}
+
+			$rows[] = array(
+				'score'    => $post['score'] ?? 0,
+				'comments' => $post['num_comments'] ?? 0,
+				'age'      => $age,
+				'author'   => $post['author'] ?? '[deleted]',
+				'title'    => mb_substr( $post['title'] ?? '', 0, 70 ),
+			);
+		}
+
+		if ( empty( $rows ) ) {
+			WP_CLI::warning( "No non-stickied posts found in r/{$subreddit}." );
+			return;
+		}
+
+		if ( 'json' === $format ) {
+			WP_CLI::log( wp_json_encode( $rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+			return;
+		}
+
+		if ( 'yaml' === $format ) {
+			$this->output_yaml( $rows );
+			return;
+		}
+
+		// Show score distribution summary before table.
+		$scores = array_column( $rows, 'score' );
+		sort( $scores );
+		$count  = count( $scores );
+		$median = 0 === $count % 2
+			? ( $scores[ $count / 2 - 1 ] + $scores[ $count / 2 ] ) / 2
+			: $scores[ intval( $count / 2 ) ];
+
+		WP_CLI::success( count( $rows ) . " posts from r/{$subreddit}" );
+		WP_CLI::log( sprintf(
+			'Score distribution: min=%d, median=%s, max=%d, avg=%d',
+			min( $scores ),
+			$median,
+			max( $scores ),
+			round( array_sum( $scores ) / $count )
+		) );
+		WP_CLI::log( '' );
+		WP_CLI\Utils\format_items( $format, $rows, array( 'score', 'comments', 'age', 'author', 'title' ) );
+	}
+
+	/**
+	 * Browse trending and popular subreddits.
+	 *
+	 * Lists popular subreddits sorted by subscriber count. Use --search
+	 * to filter by category or topic. Useful for discovering new sources.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--limit=<limit>]
+	 * : Number of subreddits to show.
+	 * ---
+	 * default: 25
+	 * ---
+	 *
+	 * [--new]
+	 * : Show new subreddits instead of popular ones.
+	 *
+	 * [--format=<format>]
+	 * : Output format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 *   - csv
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp datamachine-socials reddit trending
+	 *     wp datamachine-socials reddit trending --limit=50
+	 *     wp datamachine-socials reddit trending --new
+	 *     wp datamachine-socials reddit trending --format=json
+	 */
+	public function trending( $args, $assoc_args ) {
+		$limit    = absint( $assoc_args['limit'] ?? 25 );
+		$format   = $assoc_args['format'] ?? 'table';
+		$endpoint = isset( $assoc_args['new'] ) ? '/subreddits/new' : '/subreddits/popular';
+		$label    = isset( $assoc_args['new'] ) ? 'new' : 'popular';
+
+		WP_CLI::log( "Fetching {$label} subreddits..." );
+
+		$result   = $this->reddit_api_get( $endpoint, array(
+			'limit' => min( $limit, 100 ),
+		) );
+		$children = $result['data']['children'] ?? array();
+
+		if ( empty( $children ) ) {
+			WP_CLI::warning( "No {$label} subreddits returned." );
+			return;
+		}
+
+		$rows = array();
+		foreach ( $children as $child ) {
+			$sub    = $child['data'] ?? array();
+			$rows[] = array(
+				'subreddit'   => 'r/' . ( $sub['display_name'] ?? '' ),
+				'subscribers' => $sub['subscribers'] ?? 0,
+				'active'      => $sub['accounts_active'] ?? 0,
+				'nsfw'        => ! empty( $sub['over18'] ) ? 'yes' : 'no',
+				'description' => mb_substr( $sub['public_description'] ?? '', 0, 60 ),
+			);
+		}
+
+		if ( 'json' === $format ) {
+			WP_CLI::log( wp_json_encode( $rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+			return;
+		}
+
+		if ( 'yaml' === $format ) {
+			$this->output_yaml( $rows );
+			return;
+		}
+
+		WP_CLI::success( count( $rows ) . " {$label} subreddits" );
+		WP_CLI\Utils\format_items( $format, $rows, array( 'subreddit', 'subscribers', 'active', 'nsfw', 'description' ) );
+	}
+
+	/**
+	 * Submit a new post to a subreddit.
+	 *
+	 * Creates a self (text) post or link post in the specified subreddit.
+	 * Provide --text for a self post, or --url for a link post.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <subreddit>
+	 * : The subreddit name (without "r/").
+	 *
+	 * --title=<title>
+	 * : Post title (max 300 characters).
+	 *
+	 * [--text=<text>]
+	 * : Self-post body text (markdown). Creates a text post.
+	 *
+	 * [--url=<url>]
+	 * : URL for link posts. Cannot be combined with --text.
+	 *
+	 * [--flair-id=<flair_id>]
+	 * : Flair template ID (if required by subreddit).
+	 *
+	 * [--flair-text=<flair_text>]
+	 * : Flair text.
+	 *
+	 * [--nsfw]
+	 * : Mark as NSFW.
+	 *
+	 * [--spoiler]
+	 * : Mark as spoiler.
+	 *
+	 * [--format=<format>]
+	 * : Output format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp datamachine-socials reddit submit test --title="Hello World" --text="Testing from WP-CLI"
+	 *     wp datamachine-socials reddit submit music --title="Check this out" --url="https://example.com/song"
+	 *     wp datamachine-socials reddit submit festivals --title="Festival Guide" --text="Here's our guide..." --format=json
+	 */
+	public function submit( $args, $assoc_args ) {
+		$subreddit    = $args[0];
+		$title        = $assoc_args['title'] ?? '';
+		$text         = $assoc_args['text'] ?? '';
+		$url          = $assoc_args['url'] ?? '';
+		$format       = $assoc_args['format'] ?? 'table';
+		$access_token = $this->get_access_token();
+
+		if ( empty( $title ) ) {
+			WP_CLI::error( '--title is required.' );
+		}
+
+		if ( ! empty( $text ) && ! empty( $url ) ) {
+			WP_CLI::error( 'Cannot combine --text and --url. Use one or the other.' );
+		}
+
+		$kind = ! empty( $url ) ? 'link' : 'self';
+		WP_CLI::log( "Submitting {$kind} post to r/{$subreddit}..." );
+
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			WP_CLI::error( 'WordPress Abilities API not available (requires WP 6.9+).' );
+		}
+
+		$ability = wp_get_ability( 'datamachine/submit-reddit' );
+		if ( ! $ability ) {
+			WP_CLI::error( 'datamachine/submit-reddit ability not registered.' );
+		}
+
+		$result = $ability->execute( array(
+			'subreddit'    => $subreddit,
+			'title'        => $title,
+			'text'         => $text,
+			'url'          => $url,
+			'flair_id'     => $assoc_args['flair-id'] ?? '',
+			'flair_text'   => $assoc_args['flair-text'] ?? '',
+			'nsfw'         => isset( $assoc_args['nsfw'] ),
+			'spoiler'      => isset( $assoc_args['spoiler'] ),
+			'access_token' => $access_token,
+		) );
+
+		if ( ! $result['success'] ) {
+			WP_CLI::error( $result['error'] ?? 'Reddit submit failed.' );
+		}
+
+		$data = $result['data'] ?? array();
+
+		if ( 'json' === $format ) {
+			WP_CLI::log( wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+			return;
+		}
+
+		if ( 'yaml' === $format ) {
+			$this->output_yaml( $data );
+			return;
+		}
+
+		WP_CLI::success( "Post submitted to r/{$subreddit}" );
+		WP_CLI::log( 'Title: ' . ( $data['title'] ?? '' ) );
+		WP_CLI::log( 'Type:  ' . ( $data['kind'] ?? '' ) );
+		if ( ! empty( $data['post_url'] ) ) {
+			WP_CLI::log( 'URL:   ' . $data['post_url'] );
+		}
+		if ( ! empty( $data['post_name'] ) ) {
+			WP_CLI::log( 'Name:  ' . $data['post_name'] );
+		}
+	}
+
+	/**
+	 * Vote on a Reddit post or comment.
+	 *
+	 * Upvote, downvote, or remove your vote from a post or comment.
+	 * Default is upvote. Use --down to downvote or --unvote to remove.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <thing_id>
+	 * : Reddit fullname of the post (t3_xxx) or comment (t1_xxx).
+	 *
+	 * [--up]
+	 * : Upvote (default).
+	 *
+	 * [--down]
+	 * : Downvote.
+	 *
+	 * [--unvote]
+	 * : Remove existing vote.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp datamachine-socials reddit vote t3_abc123
+	 *     wp datamachine-socials reddit vote t3_abc123 --up
+	 *     wp datamachine-socials reddit vote t3_abc123 --down
+	 *     wp datamachine-socials reddit vote t1_def456 --unvote
+	 */
+	public function vote( $args, $assoc_args ) {
+		$thing_id     = $args[0];
+		$access_token = $this->get_access_token();
+
+		// Determine direction.
+		if ( isset( $assoc_args['down'] ) ) {
+			$direction = -1;
+			$label     = 'Downvoting';
+		} elseif ( isset( $assoc_args['unvote'] ) ) {
+			$direction = 0;
+			$label     = 'Removing vote from';
+		} else {
+			$direction = 1;
+			$label     = 'Upvoting';
+		}
+
+		WP_CLI::log( "{$label} {$thing_id}..." );
+
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			WP_CLI::error( 'WordPress Abilities API not available (requires WP 6.9+).' );
+		}
+
+		$ability = wp_get_ability( 'datamachine/vote-reddit' );
+		if ( ! $ability ) {
+			WP_CLI::error( 'datamachine/vote-reddit ability not registered.' );
+		}
+
+		$result = $ability->execute( array(
+			'thing_id'     => $thing_id,
+			'direction'    => $direction,
+			'access_token' => $access_token,
+		) );
+
+		if ( ! $result['success'] ) {
+			WP_CLI::error( $result['error'] ?? 'Reddit vote failed.' );
+		}
+
+		$action = $result['data']['action'] ?? 'voted';
+		WP_CLI::success( "Successfully {$action} {$thing_id}" );
+	}
+
+	/**
+	 * Get a valid Reddit access token or exit with error.
+	 *
+	 * @return string Access token.
+	 */
+	private function get_access_token(): string {
+		$auth_abilities = new AuthAbilities();
+		$provider       = $auth_abilities->getProvider( 'reddit' );
+
+		if ( ! $provider ) {
+			WP_CLI::error( 'Reddit auth provider not found. Is data-machine-socials active?' );
+		}
+
+		if ( ! $provider->is_authenticated() ) {
+			WP_CLI::error( 'Reddit is not authenticated. Connect via Settings > Data Machine > Auth.' );
+		}
+
+		$access_token = $provider->get_valid_access_token();
+		if ( empty( $access_token ) ) {
+			WP_CLI::error( 'Failed to obtain a valid Reddit access token (expired and refresh failed).' );
+		}
+
+		return $access_token;
+	}
+
+	/**
+	 * Output data as YAML-like format.
+	 *
+	 * @param array $data Data to output.
+	 */
+	private function output_yaml( array $data, int $indent = 0 ): void {
+		$prefix = str_repeat( '  ', $indent );
+		foreach ( $data as $key => $value ) {
+			if ( is_array( $value ) ) {
+				WP_CLI::log( "{$prefix}{$key}:" );
+				$this->output_yaml( $value, $indent + 1 );
+			} else {
+				$display = is_bool( $value ) ? ( $value ? 'true' : 'false' ) : (string) $value;
+				WP_CLI::log( "{$prefix}{$key}: {$display}" );
+			}
+		}
+	}

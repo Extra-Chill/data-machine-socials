@@ -12,6 +12,7 @@ namespace DataMachineSocials\Tests\Unit\Abilities\Instagram;
 use DataMachineSocials\Abilities\Instagram\InstagramCommentReplyAbility;
 use DataMachineSocials\Handlers\Instagram\InstagramAuth;
 use WP_UnitTestCase;
+use DataMachineSocials\Tests\Unit\Abilities\Instagram\InstagramPublishReelTest;
 
 class InstagramCommentReplyAbilityTest extends WP_UnitTestCase {
 

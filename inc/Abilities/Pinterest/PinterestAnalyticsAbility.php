@@ -15,6 +15,8 @@ namespace DataMachineSocials\Abilities\Pinterest;
 use DataMachine\Abilities\PermissionHelper;
 use DataMachine\Core\HttpClient;
 use DataMachineSocials\Handlers\Pinterest\PinterestAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Pinterest\PinterestReadAbility;
 
 defined( 'ABSPATH' ) || exit;
 

@@ -12,6 +12,7 @@
 namespace DataMachineSocials\Handlers\Twitter;
 
 use Abraham\TwitterOAuth\TwitterOAuth;
+use DataMachineSocials\Handlers\Traits\HasRemoveAccount;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

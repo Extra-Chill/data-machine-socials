@@ -14,6 +14,8 @@ namespace DataMachineSocials\Abilities\Twitter;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Twitter\TwitterAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
+use DataMachineSocials\Abilities\Twitter\TwitterDeleteAbility;
 
 defined( 'ABSPATH' ) || exit;
 

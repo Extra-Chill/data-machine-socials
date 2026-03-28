@@ -13,6 +13,7 @@ namespace DataMachineSocials\Abilities\Threads;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Threads\ThreadsAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
 
 defined( 'ABSPATH' ) || exit;
 
