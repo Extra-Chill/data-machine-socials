@@ -12,12 +12,15 @@
 namespace DataMachineSocials\Handlers\Twitter;
 
 use Abraham\TwitterOAuth\TwitterOAuth;
+use DataMachineSocials\Handlers\Traits\HasRemoveAccount;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 class TwitterAuth extends \DataMachine\Core\OAuth\BaseOAuth1Provider {
+	use HasRemoveAccount;
+
 
 	public function __construct() {
 		parent::__construct( 'twitter' );
@@ -203,12 +206,4 @@ class TwitterAuth extends \DataMachine\Core\OAuth\BaseOAuth1Provider {
 		return $account;
 	}
 
-	/**
-	 * Remove stored Twitter account details.
-	 *
-	 * @return bool Success status
-	 */
-	public function remove_account(): bool {
-		return $this->clear_account();
-	}
 }

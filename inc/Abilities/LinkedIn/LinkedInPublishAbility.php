@@ -395,4 +395,72 @@ class LinkedInPublishAbility {
 		// LinkedIn post URLs follow: https://www.linkedin.com/feed/update/{urn}
 		return 'https://www.linkedin.com/feed/update/' . $post_id;
 	}
+
+    public function execute( array $input ): array|\WP_Error {
+		$post_id    = $input['post_id'] ?? '';
+		$commentary = $input['commentary'] ?? '';
+
+		if ( empty( $post_id ) ) {
+			return new \WP_Error( 'missing_param', 'post_id is required', array( 'status' => 400 ) );
+		}
+
+		if ( empty( $commentary ) ) {
+			return new \WP_Error( 'missing_param', 'commentary is required', array( 'status' => 400 ) );
+		}
+
+		$provider = $this->getAuthProvider();
+		if ( ! $provider ) {
+			return new \WP_Error( 'missing_auth', 'LinkedIn auth provider not available', array( 'status' => 401 ) );
+		}
+
+		if ( ! $provider->is_authenticated() ) {
+			return new \WP_Error( 'missing_auth', 'LinkedIn not authenticated', array( 'status' => 401 ) );
+		}
+
+		$encoded_id = rawurlencode( $post_id );
+		$url        = LinkedInAuth::API_BASE . "/rest/posts/{$encoded_id}";
+
+		$payload = array(
+			'patch' => array(
+				'$set' => array(
+					'commentary' => $commentary,
+				),
+			),
+		);
+
+		$result = $provider->api_request(
+			'POST',
+			$url,
+			array(
+				'headers' => array( 'X-RestLi-Method' => 'PARTIAL_UPDATE' ),
+				'body'    => wp_json_encode( $payload ),
+				'context' => 'LinkedIn Update Post',
+			)
+		);
+
+		// LinkedIn returns 204 on successful update.
+		if ( $result['success'] ) {
+			return array(
+				'success' => true,
+				'post_id' => $post_id,
+			);
+		}
+
+		return new \WP_Error( 'api_error', $result['error'] ?? 'Failed to update LinkedIn post', array( 'status' => 500 ) );
+    }
+
+    private function getAuthProvider(): ?LinkedInAuth {
+		$auth_abilities = new AuthAbilities();
+		$provider       = $auth_abilities->getProvider( 'linkedin' );
+
+		if ( $provider instanceof LinkedInAuth ) {
+			return $provider;
+		}
+
+		return null;
+    }
+
+    public function checkPermission(): bool {
+		return PermissionHelper::can_manage();
+    }
 }

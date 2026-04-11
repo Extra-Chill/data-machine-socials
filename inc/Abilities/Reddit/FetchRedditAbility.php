@@ -15,10 +15,13 @@
 namespace DataMachineSocials\Abilities\Reddit;
 
 use DataMachine\Abilities\PermissionHelper;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
 
 defined( 'ABSPATH' ) || exit;
 
 class FetchRedditAbility {
+	use HasCheckPermission;
+
 
 	private static bool $registered = false;
 
@@ -135,15 +138,6 @@ class FetchRedditAbility {
 		} elseif ( ! did_action( 'wp_abilities_api_init' ) ) {
 			add_action( 'wp_abilities_api_init', $register_callback );
 		}
-	}
-
-	/**
-	 * Permission callback for ability.
-	 *
-	 * @return bool True if user has permission.
-	 */
-	public function checkPermission(): bool {
-		return PermissionHelper::can_manage();
 	}
 
 	/**

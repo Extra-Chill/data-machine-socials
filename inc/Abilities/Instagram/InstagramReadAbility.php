@@ -15,10 +15,13 @@ namespace DataMachineSocials\Abilities\Instagram;
 use DataMachine\Abilities\PermissionHelper;
 use DataMachine\Core\HttpClient;
 use DataMachineSocials\Handlers\Instagram\InstagramAuth;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
 
 defined( 'ABSPATH' ) || exit;
 
 class InstagramReadAbility {
+	use HasCheckPermission;
+
 
 	private static bool $registered = false;
 
@@ -105,15 +108,6 @@ class InstagramReadAbility {
 		} elseif ( ! did_action( 'wp_abilities_api_init' ) ) {
 			add_action( 'wp_abilities_api_init', $register_callback );
 		}
-	}
-
-	/**
-	 * Permission callback.
-	 *
-	 * @return bool
-	 */
-	public function checkPermission(): bool {
-		return PermissionHelper::can_manage();
 	}
 
 	/**

@@ -49,4 +49,71 @@ class InstagramSettings extends PublishHandlerSettings {
 
 		return array_merge( $fields, parent::get_common_fields() );
 	}
+
+    public function __construct() {
+		parent::__construct( 'instagram' );
+
+		// Self-register with filters
+		self::registerHandler(
+			'instagram_publish',
+			'publish',
+			self::class,
+			'Instagram',
+			'Post content to Instagram with support for single images and carousels (up to 10 images)',
+			true,
+			InstagramAuth::class,
+			InstagramSettings::class,
+			function ( $tools, $handler_slug, $handler_config ) {
+				$handler_config;
+				if ( 'instagram_publish' === $handler_slug ) {
+					$tools['instagram_publish'] = array(
+						'class'       => self::class,
+						'method'      => 'handle_tool_call',
+						'handler'     => 'instagram_publish',
+						'description' => 'Post content to Instagram. Supports single images and carousels (up to 10 images). Images are processed async.',
+						'parameters'  => array(
+							'type'       => 'object',
+							'properties' => array(
+								'content'      => array(
+									'type'        => 'string',
+									'description' => 'The caption text to post to Instagram (max 2200 characters)',
+								),
+								'image_urls'   => array(
+									'type'        => 'array',
+									'description' => 'Array of image URLs (1-10 for carousel)',
+									'items'       => array(
+										'type'   => 'string',
+										'format' => 'uri',
+									),
+								),
+								'aspect_ratio' => array(
+									'type'        => 'string',
+									'description' => 'Aspect ratio for images: 1:1, 4:5, 3:4, or 1.91:1',
+									'enum'        => array( '1:1', '4:5', '3:4', '1.91:1' ),
+									'default'     => '4:5',
+								),
+							),
+							'required'   => array( 'content' ),
+						),
+					);
+				}
+				return $tools;
+			},
+			'instagram',
+			array(
+			'charLimit'           => 2200,
+			'maxImages'           => 10,
+			'aspectRatios'        => array( '1:1', '4:5', '3:4', '1.91:1' ),
+			'defaultAspectRatio'  => '4:5',
+			'supportsCarousel'    => true,
+			'supportsVideo'       => true,
+			'supportedMediaKinds' => array( 'image', 'carousel', 'reel', 'story' ),
+			'capabilities'        => array(
+				array( 'slug' => 'publish', 'label' => 'Publish' ),
+				array( 'slug' => 'comments', 'label' => 'Comments' ),
+				array( 'slug' => 'giveaway', 'label' => 'Giveaway' ),
+			),
+			)
+		);
+    }
 }
