@@ -39,4 +39,56 @@ class LinkedInSettings extends PublishHandlerSettings {
 			)
 		);
 	}
+
+	public function __construct() {
+		parent::__construct( 'linkedin' );
+
+		// Self-register with filters.
+		self::registerHandler(
+			'linkedin_publish',
+			'publish',
+			self::class,
+			'LinkedIn',
+			'Post content to LinkedIn with media and article support',
+			true,
+			LinkedInAuth::class,
+			self::class,
+			function ( $tools, $handler_slug, $handler_config ) {
+				$handler_config;
+				if ( 'linkedin_publish' === $handler_slug ) {
+					$tools['linkedin_publish'] = array(
+						'class'       => self::class,
+						'method'      => 'handle_tool_call',
+						'handler'     => 'linkedin_publish',
+						'description' => 'Post content to LinkedIn. Supports text (up to 3000 chars), images, and article sharing.',
+						'parameters'  => array(
+							'type'       => 'object',
+							'properties' => array(
+								'content' => array(
+									'type'        => 'string',
+									'description' => 'The text content to post to LinkedIn',
+								),
+							),
+							'required'   => array( 'content' ),
+						),
+					);
+				}
+				return $tools;
+			},
+			'linkedin',
+			array(
+				'charLimit'          => 3000,
+				'maxImages'          => 9,
+				'aspectRatios'       => array( 'any' ),
+				'defaultAspectRatio' => 'any',
+				'supportsCarousel'   => false,
+				'capabilities'       => array(
+					array(
+						'slug'  => 'publish',
+						'label' => 'Publish',
+					),
+				),
+			)
+		);
+	}
 }

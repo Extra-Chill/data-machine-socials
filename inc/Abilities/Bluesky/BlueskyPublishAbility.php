@@ -434,4 +434,59 @@ class BlueskyPublishAbility {
 
 		return $og;
 	}
+
+	public function checkPermission(): bool {
+		return PermissionHelper::can( 'use_tools' );
+	}
+
+	public function execute( array $input ): array|\WP_Error {
+		$action = $input['action'] ?? 'list';
+
+		$auth = $this->getAuthProvider();
+		if ( ! $auth ) {
+			return new \WP_Error( 'missing_auth', 'Bluesky auth provider not available', array( 'status' => 401 ) );
+		}
+
+		$session = $auth->get_session();
+		if ( is_wp_error( $session ) ) {
+			return new \WP_Error( 'api_error', 'Bluesky session creation failed: ' . $session->get_error_message(), array( 'status' => 500 ) );
+		}
+
+		if ( empty( $session['accessJwt'] ) ) {
+			return new \WP_Error( 'missing_auth', 'Bluesky authentication failed (no access token in session)', array( 'status' => 401 ) );
+		}
+
+		$pds_url      = $session['pds_url'] ?? 'https://bsky.social';
+		$access_token = $session['accessJwt'];
+		$did          = $session['did'] ?? '';
+		$handle       = $session['handle'] ?? '';
+
+		switch ( $action ) {
+			case 'list':
+				return $this->listPosts( $pds_url, $access_token, $did ? $did : $handle, $input );
+
+			case 'get':
+				if ( empty( $input['post_uri'] ) ) {
+					return new \WP_Error( 'missing_param', 'post_uri is required for the get action', array( 'status' => 400 ) );
+				}
+				return $this->getPostThread( $pds_url, $access_token, $input['post_uri'] );
+
+			case 'profile':
+				return $this->getProfile( $pds_url, $access_token, $did ? $did : $handle );
+
+			default:
+				return new \WP_Error( 'api_error', "Unknown action: {$action}. Use list, get, or profile.", array( 'status' => 500 ) );
+		}
+	}
+
+	private function getAuthProvider(): ?BlueskyAuth {
+		$auth_abilities = new \DataMachine\Abilities\AuthAbilities();
+		$provider       = $auth_abilities->getProvider( 'bluesky' );
+
+		if ( $provider instanceof BlueskyAuth ) {
+			return $provider;
+		}
+
+		return null;
+	}
 }
