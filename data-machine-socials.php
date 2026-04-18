@@ -116,6 +116,9 @@ function datamachine_socials_bootstrap() {
 		return $tasks;
 	} );
 
+	// Register daily OAuth token health check.
+	\DataMachineSocials\Tasks\TokenHealthCheckTask::register();
+
 	// Register image generation templates
 	add_filter( 'datamachine/image_generation/templates', function ( array $templates ): array {
 		$templates['quote_card'] = \DataMachineSocials\ImageGeneration\Templates\QuoteCard::class;
@@ -132,6 +135,11 @@ add_action( 'plugins_loaded', 'datamachine_socials_bootstrap', 20 );
 
 // Temp file cleanup runs independently (doesn't need DM core)
 \DataMachineSocials\Cleanup::register();
+
+// Cleanup cron on deactivation.
+register_deactivation_hook( __FILE__, function () {
+	\DataMachineSocials\Tasks\TokenHealthCheckTask::unregister();
+} );
 
 /**
  * Enqueue Gutenberg sidebar assets
@@ -200,6 +208,8 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once DATAMACHINE_SOCIALS_PATH . 'inc/Cli/Commands/LinkedInCommand.php';
 	require_once DATAMACHINE_SOCIALS_PATH . 'inc/Cli/Commands/SharesCommand.php';
 	require_once DATAMACHINE_SOCIALS_PATH . 'inc/Cli/Commands/CommentsCommand.php';
+	require_once DATAMACHINE_SOCIALS_PATH . 'inc/Cli/Commands/AuthCommand.php';
+	WP_CLI::add_command( 'datamachine-socials auth', \DataMachineSocials\Cli\Commands\AuthCommand::class );
 	WP_CLI::add_command( 'datamachine-socials comments', \DataMachineSocials\Cli\Commands\CommentsCommand::class );
 	WP_CLI::add_command( 'datamachine-socials linkedin', \DataMachineSocials\Cli\Commands\LinkedInCommand::class );
 	WP_CLI::add_command( 'datamachine-socials pinterest', \DataMachineSocials\Cli\Commands\PinterestCommand::class );
