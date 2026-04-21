@@ -13,10 +13,13 @@ namespace DataMachineSocials\Abilities\Instagram;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Instagram\InstagramAuth;
+use DataMachineSocials\Abilities\Instagram\InstagramDeleteAbility;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
 
 defined( 'ABSPATH' ) || exit;
 
 class InstagramCommentReplyAbility {
+	use HasCheckPermission;
 
 	private static bool $registered = false;
 
@@ -82,10 +85,6 @@ class InstagramCommentReplyAbility {
 		}
 	}
 
-	public function checkPermission(): bool {
-		return PermissionHelper::can( 'use_tools' );
-	}
-
 	public function execute( array $input ): array|\WP_Error {
 		$auth = $this->getAuthProvider();
 		if ( ! $auth ) {
@@ -113,21 +112,6 @@ class InstagramCommentReplyAbility {
 		}
 
 		return $this->replyToComment( $access_token, $comment_id, $message );
-	}
-
-	private function getAuthProvider(): ?InstagramAuth {
-		if ( ! class_exists( '\DataMachine\Abilities\AuthAbilities' ) ) {
-			return null;
-		}
-
-		$auth     = new \DataMachine\Abilities\AuthAbilities();
-		$provider = $auth->getProvider( 'instagram' );
-
-		if ( ! $provider instanceof InstagramAuth ) {
-			return null;
-		}
-
-		return $provider;
 	}
 
 	private function replyToComment( string $access_token, string $comment_id, string $message ): array|\WP_Error {

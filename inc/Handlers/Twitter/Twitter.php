@@ -47,6 +47,8 @@ class Twitter extends PublishHandler {
 			TwitterAuth::class,
 			TwitterSettings::class,
 			function ( $handler_slug, $handler_config, $engine_data ) {
+				unset( $handler_config );
+				unset( $engine_data );
 				return array(
 					'twitter_publish' => array(
 						'class'       => self::class,
@@ -68,14 +70,17 @@ class Twitter extends PublishHandler {
 			},
 			'twitter',
 			array(
-			'charLimit'          => 280,
-			'maxImages'          => 4,
-			'aspectRatios'       => array( 'any' ),
-			'defaultAspectRatio' => 'any',
-			'supportsCarousel'   => false,
-			'capabilities'       => array(
-				array( 'slug' => 'publish', 'label' => 'Publish' ),
-			),
+				'charLimit'          => 280,
+				'maxImages'          => 4,
+				'aspectRatios'       => array( 'any' ),
+				'defaultAspectRatio' => 'any',
+				'supportsCarousel'   => false,
+				'capabilities'       => array(
+					array(
+						'slug'  => 'publish',
+						'label' => 'Publish',
+					),
+				),
 			)
 		);
 	}
