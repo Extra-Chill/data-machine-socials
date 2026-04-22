@@ -371,4 +371,51 @@ class ThreadsPublishAbility {
 			$data['error']['message'] ?? 'Failed to publish thread'
 		);
 	}
+
+	public function execute( array $input ): array|\WP_Error {
+		$action = $input['action'] ?? '';
+
+		$auth = $this->getAuthProvider();
+		if ( ! $auth ) {
+			return new \WP_Error( 'missing_auth', 'Threads auth provider not available', array( 'status' => 401 ) );
+		}
+
+		$access_token = $auth->get_valid_access_token();
+		if ( empty( $access_token ) ) {
+			return new \WP_Error( 'missing_auth', 'Threads access token unavailable', array( 'status' => 401 ) );
+		}
+
+		if ( empty( $input['thread_id'] ) ) {
+			return new \WP_Error( 'missing_param', 'thread_id is required', array( 'status' => 400 ) );
+		}
+
+		$thread_id = $input['thread_id'];
+
+		switch ( $action ) {
+			case 'delete':
+				return $this->deleteThread( $access_token, $thread_id );
+
+			default:
+				return new \WP_Error( 'api_error', "Unknown action: {$action}. Use delete.", array( 'status' => 500 ) );
+		}
+	}
+
+	public function checkPermission(): bool {
+		return PermissionHelper::can( 'use_tools' );
+	}
+
+	private function getAuthProvider(): ?ThreadsAuth {
+		if ( ! class_exists( '\DataMachine\Abilities\AuthAbilities' ) ) {
+			return null;
+		}
+
+		$auth     = new \DataMachine\Abilities\AuthAbilities();
+		$provider = $auth->getProvider( 'threads' );
+
+		if ( ! $provider instanceof ThreadsAuth ) {
+			return null;
+		}
+
+		return $provider;
+	}
 }

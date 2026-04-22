@@ -118,7 +118,7 @@ class Publisher {
 		return array(
 			'success' => empty( $errors ),
 			'results' => $results,
-			'errors'  => $errors ?: null,
+			'errors'  => $errors ? $errors : null,
 		);
 	}
 

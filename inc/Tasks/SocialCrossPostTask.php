@@ -55,8 +55,8 @@ class SocialCrossPostTask extends SystemTask {
 			return;
 		}
 
-		$results  = $publish_result['results'] ?? array();
-		$errors   = $publish_result['errors'] ?? array();
+		$results   = $publish_result['results'] ?? array();
+		$errors    = $publish_result['errors'] ?? array();
 		$successes = array_filter( $results, fn( $r ) => ! empty( $r['success'] ) );
 
 		// Build normalized log entries.
@@ -74,14 +74,14 @@ class SocialCrossPostTask extends SystemTask {
 
 		// Store results in post meta when post_id is available.
 		if ( $post_id ) {
-			$existing_log = get_post_meta( $post_id, '_studio_social_publish_log', true ) ?: array();
+			$existing_log = get_post_meta( $post_id, '_studio_social_publish_log', true ) ? get_post_meta( $post_id, '_studio_social_publish_log', true ) : array();
 			$merged_log   = array_merge( $existing_log, $log );
 			update_post_meta( $post_id, '_studio_social_publish_log', $merged_log );
 		}
 
 		// Write full results to job engine_data.
 		$completion_data = array(
-			'post_id'       => $post_id ?: null,
+			'post_id'       => $post_id ? $post_id : null,
 			'platforms'     => $platforms,
 			'results'       => $results,
 			'log'           => $log,

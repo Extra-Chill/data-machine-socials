@@ -191,4 +191,72 @@ class PinterestPublishAbility {
 			'pin_url' => $pin_url,
 		);
 	}
+
+	private function getAuthProvider(): ?PinterestAuth {
+		if ( ! class_exists( '\DataMachine\Abilities\AuthAbilities' ) ) {
+			return null;
+		}
+
+		$auth     = new \DataMachine\Abilities\AuthAbilities();
+		$provider = $auth->getProvider( 'pinterest' );
+
+		if ( ! $provider instanceof PinterestAuth ) {
+			return null;
+		}
+
+		return $provider;
+	}
+
+	public function checkPermission(): bool {
+		return PermissionHelper::can( 'use_tools' );
+	}
+
+	public function execute( array $input ): array|\WP_Error {
+		$auth = $this->getAuthProvider();
+		if ( ! $auth ) {
+			return new \WP_Error( 'missing_auth', 'Pinterest auth provider not available', array( 'status' => 401 ) );
+		}
+
+		$access_token = $auth->get_valid_access_token();
+
+		if ( empty( $access_token ) ) {
+			return new \WP_Error( 'missing_auth', 'Pinterest access token is missing or expired — re-authorize in WP Admin > Data Machine > Settings', array( 'status' => 401 ) );
+		}
+
+		if ( empty( $input['pin_id'] ) ) {
+			return new \WP_Error( 'missing_param', 'pin_id is required', array( 'status' => 400 ) );
+		}
+
+		$url = self::API_URL . '/pins/' . rawurlencode( $input['pin_id'] );
+
+		$response = wp_remote_request(
+			$url,
+			array(
+				'method'  => 'DELETE',
+				'timeout' => 30,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $access_token,
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 500 ) );
+		}
+
+		$status_code = wp_remote_retrieve_response_code( $response );
+
+		if ( 204 === $status_code || 200 === $status_code ) {
+			return array(
+				'success' => true,
+				'data'    => array(
+					'pin_id'  => $input['pin_id'],
+					'deleted' => true,
+				),
+			);
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		return new \WP_Error( 'api_error', $body['message'] ?? 'Failed to delete pin', array( 'status' => 500 ) );
+	}
 }

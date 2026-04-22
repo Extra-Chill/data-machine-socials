@@ -45,6 +45,8 @@ class Facebook extends PublishHandler {
 			FacebookAuth::class,
 			FacebookSettings::class,
 			function ( $handler_slug, $handler_config, $engine_data ) {
+				unset( $handler_config );
+				unset( $engine_data );
 				return array(
 					'facebook_publish' => array(
 						'class'       => self::class,
@@ -66,15 +68,21 @@ class Facebook extends PublishHandler {
 			},
 			'facebook',
 			array(
-			'charLimit'          => 63206,
-			'maxImages'          => 10,
-			'aspectRatios'       => array( 'any' ),
-			'defaultAspectRatio' => 'any',
-			'supportsCarousel'   => true,
-			'capabilities'       => array(
-				array( 'slug' => 'publish', 'label' => 'Publish' ),
-				array( 'slug' => 'comments', 'label' => 'Comments' ),
-			),
+				'charLimit'          => 63206,
+				'maxImages'          => 10,
+				'aspectRatios'       => array( 'any' ),
+				'defaultAspectRatio' => 'any',
+				'supportsCarousel'   => true,
+				'capabilities'       => array(
+					array(
+						'slug'  => 'publish',
+						'label' => 'Publish',
+					),
+					array(
+						'slug'  => 'comments',
+						'label' => 'Comments',
+					),
+				),
 			)
 		);
 	}
