@@ -40,4 +40,56 @@ class TwitterSettings extends PublishHandlerSettings {
 			)
 		);
 	}
+
+	public function __construct() {
+		parent::__construct( 'twitter' );
+
+		// Self-register with filters
+		self::registerHandler(
+			'twitter_publish',
+			'publish',
+			self::class,
+			'Twitter',
+			'Post content to Twitter with media support',
+			true,
+			TwitterAuth::class,
+			self::class,
+			function ( $handler_slug, $handler_config, $engine_data ) {
+				unset( $handler_config );
+				unset( $engine_data );
+				return array(
+					'twitter_publish' => array(
+						'class'       => self::class,
+						'method'      => 'handle_tool_call',
+						'handler'     => $handler_slug,
+						'description' => 'Post content to Twitter. Supports text (280 chars), images, and URL handling.',
+						'parameters'  => array(
+							'type'       => 'object',
+							'properties' => array(
+								'content' => array(
+									'type'        => 'string',
+									'description' => 'The text content to post to Twitter',
+								),
+							),
+							'required'   => array( 'content' ),
+						),
+					),
+				);
+			},
+			'twitter',
+			array(
+				'charLimit'          => 280,
+				'maxImages'          => 4,
+				'aspectRatios'       => array( 'any' ),
+				'defaultAspectRatio' => 'any',
+				'supportsCarousel'   => false,
+				'capabilities'       => array(
+					array(
+						'slug'  => 'publish',
+						'label' => 'Publish',
+					),
+				),
+			)
+		);
+	}
 }

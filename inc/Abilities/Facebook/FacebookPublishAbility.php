@@ -358,4 +358,71 @@ class FacebookPublishAbility {
 	private static function build_graph_url( string $path ): string {
 		return 'https://graph.facebook.com/v23.0/' . ltrim( $path, '/' );
 	}
+
+	public function checkPermission(): bool {
+		return PermissionHelper::can( 'use_tools' );
+	}
+
+	private function getAuthProvider(): ?FacebookAuth {
+		if ( ! class_exists( '\DataMachine\Abilities\AuthAbilities' ) ) {
+			return null;
+		}
+
+		$auth     = new \DataMachine\Abilities\AuthAbilities();
+		$provider = $auth->getProvider( 'facebook' );
+
+		if ( ! $provider instanceof FacebookAuth ) {
+			return null;
+		}
+
+		return $provider;
+	}
+
+	public function execute( array $input ): array|\WP_Error {
+		$auth = $this->getAuthProvider();
+		if ( ! $auth ) {
+			return new \WP_Error( 'missing_auth', 'Facebook auth provider not available', array( 'status' => 401 ) );
+		}
+
+		$access_token = $auth->get_page_access_token();
+		if ( empty( $access_token ) ) {
+			return new \WP_Error( 'missing_auth', 'Facebook page access token unavailable', array( 'status' => 401 ) );
+		}
+
+		if ( empty( $input['post_id'] ) ) {
+			return new \WP_Error( 'missing_param', 'post_id is required', array( 'status' => 400 ) );
+		}
+
+		$url = self::GRAPH_API_URL . '/' . rawurlencode( $input['post_id'] );
+
+		$response = wp_remote_post(
+			$url,
+			array(
+				'timeout' => 30,
+				'body'    => array(
+					'access_token' => $access_token,
+					'method'       => 'DELETE',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 500 ) );
+		}
+
+		$status_code = wp_remote_retrieve_response_code( $response );
+		$body        = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 === $status_code || ( isset( $body['success'] ) && $body['success'] ) ) {
+			return array(
+				'success' => true,
+				'data'    => array(
+					'post_id' => $input['post_id'],
+					'deleted' => true,
+				),
+			);
+		}
+
+		return new \WP_Error( 'api_error', $body['error']['message'] ?? 'Failed to delete post', array( 'status' => 500 ) );
+	}
 }

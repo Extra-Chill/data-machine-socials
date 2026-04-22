@@ -48,6 +48,8 @@ class LinkedIn extends PublishHandler {
 			LinkedInAuth::class,
 			LinkedInSettings::class,
 			function ( $handler_slug, $handler_config, $engine_data ) {
+				unset( $handler_config );
+				unset( $engine_data );
 				return array(
 					'linkedin_publish' => array(
 						'class'       => self::class,
@@ -69,14 +71,17 @@ class LinkedIn extends PublishHandler {
 			},
 			'linkedin',
 			array(
-			'charLimit'          => 3000,
-			'maxImages'          => 9,
-			'aspectRatios'       => array( 'any' ),
-			'defaultAspectRatio' => 'any',
-			'supportsCarousel'   => false,
-			'capabilities'       => array(
-				array( 'slug' => 'publish', 'label' => 'Publish' ),
-			),
+				'charLimit'          => 3000,
+				'maxImages'          => 9,
+				'aspectRatios'       => array( 'any' ),
+				'defaultAspectRatio' => 'any',
+				'supportsCarousel'   => false,
+				'capabilities'       => array(
+					array(
+						'slug'  => 'publish',
+						'label' => 'Publish',
+					),
+				),
 			)
 		);
 	}
@@ -123,10 +128,10 @@ class LinkedIn extends PublishHandler {
 
 		$result = LinkedInPublishAbility::execute_publish(
 			array(
-				'content'     => $parameters['content'] ?? '',
-				'image_path'  => $media_path,
-				'source_url'  => $engine->getSourceUrl(),
-				'visibility'  => $handler_config['visibility'] ?? 'PUBLIC',
+				'content'    => $parameters['content'] ?? '',
+				'image_path' => $media_path,
+				'source_url' => $engine->getSourceUrl(),
+				'visibility' => $handler_config['visibility'] ?? 'PUBLIC',
 			)
 		);
 

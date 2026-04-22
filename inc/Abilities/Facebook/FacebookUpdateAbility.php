@@ -14,10 +14,13 @@ namespace DataMachineSocials\Abilities\Facebook;
 
 use DataMachine\Abilities\PermissionHelper;
 use DataMachineSocials\Handlers\Facebook\FacebookAuth;
+use DataMachineSocials\Abilities\Facebook\FacebookDeleteAbility;
+use DataMachineSocials\Abilities\Traits\HasCheckPermission;
 
 defined( 'ABSPATH' ) || exit;
 
 class FacebookUpdateAbility {
+	use HasCheckPermission;
 
 	private static bool $registered = false;
 
@@ -86,15 +89,6 @@ class FacebookUpdateAbility {
 	}
 
 	/**
-	 * Permission callback.
-	 *
-	 * @return bool
-	 */
-	public function checkPermission(): bool {
-		return PermissionHelper::can( 'use_tools' );
-	}
-
-	/**
 	 * Execute the update ability.
 	 *
 	 * @param array $input Input parameters.
@@ -139,26 +133,6 @@ class FacebookUpdateAbility {
 			default:
 				return new \WP_Error( 'api_error', "Unknown action: {$action}. Use edit, hide, unhide, or delete.", array( 'status' => 500 ) );
 		}
-	}
-
-	/**
-	 * Get auth provider.
-	 *
-	 * @return FacebookAuth|null
-	 */
-	private function getAuthProvider(): ?FacebookAuth {
-		if ( ! class_exists( '\DataMachine\Abilities\AuthAbilities' ) ) {
-			return null;
-		}
-
-		$auth     = new \DataMachine\Abilities\AuthAbilities();
-		$provider = $auth->getProvider( 'facebook' );
-
-		if ( ! $provider instanceof FacebookAuth ) {
-			return null;
-		}
-
-		return $provider;
 	}
 
 	/**

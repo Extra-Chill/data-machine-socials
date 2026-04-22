@@ -36,6 +36,8 @@ class Bluesky extends PublishHandler {
 			BlueskyAuth::class,
 			BlueskySettings::class,
 			function ( $handler_slug, $handler_config, $engine_data ) {
+				unset( $handler_config );
+				unset( $engine_data );
 				return array(
 					'bluesky_publish' => array(
 						'class'       => self::class,
@@ -57,14 +59,17 @@ class Bluesky extends PublishHandler {
 			},
 			'bluesky',
 			array(
-			'charLimit'          => 300,
-			'maxImages'          => 4,
-			'aspectRatios'       => array( 'any' ),
-			'defaultAspectRatio' => 'any',
-			'supportsCarousel'   => false,
-			'capabilities'       => array(
-				array( 'slug' => 'publish', 'label' => 'Publish' ),
-			),
+				'charLimit'          => 300,
+				'maxImages'          => 4,
+				'aspectRatios'       => array( 'any' ),
+				'defaultAspectRatio' => 'any',
+				'supportsCarousel'   => false,
+				'capabilities'       => array(
+					array(
+						'slug'  => 'publish',
+						'label' => 'Publish',
+					),
+				),
 			)
 		);
 	}
