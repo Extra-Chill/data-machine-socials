@@ -93,12 +93,13 @@ class FacebookDeleteAbility extends AbstractSocialAbility {
 			)
 		);
 
-		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 500 ) );
+		$normalized = $this->normalizeJsonResponse( $response );
+		if ( is_wp_error( $normalized ) ) {
+			return $normalized;
 		}
 
-		$status_code = wp_remote_retrieve_response_code( $response );
-		$body        = json_decode( wp_remote_retrieve_body( $response ), true );
+		$status_code = $normalized['status_code'];
+		$body        = $normalized['data'];
 
 		if ( 200 === $status_code || ( isset( $body['success'] ) && $body['success'] ) ) {
 			return array(
@@ -110,7 +111,7 @@ class FacebookDeleteAbility extends AbstractSocialAbility {
 			);
 		}
 
-		return new \WP_Error( 'api_error', $body['error']['message'] ?? 'Failed to delete post', array( 'status' => 500 ) );
+		return $this->apiError( $body['error']['message'] ?? 'Failed to delete post' );
 	}
 
 	private function getAuthProvider(): ?FacebookAuth {
