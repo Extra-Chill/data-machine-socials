@@ -32,13 +32,16 @@ class CommandRegistry {
 			'datamachine-socials comments'  => Commands\CommentsCommand::class,
 			'datamachine-socials linkedin'  => Commands\LinkedInCommand::class,
 			'datamachine-socials pinterest' => Commands\PinterestCommand::class,
+			'datamachine-socials tumblr'    => Commands\TumblrCommand::class,
 			'datamachine-socials reddit'    => Commands\RedditCommand::class,
 			'datamachine-socials instagram' => Commands\InstagramCommand::class,
+			'datamachine-socials tiktok'    => Commands\TikTokCommand::class,
 			'datamachine-socials threads'   => Commands\ThreadsCommand::class,
 			'datamachine-socials facebook'  => Commands\FacebookCommand::class,
 			'datamachine-socials twitter'   => Commands\TwitterCommand::class,
 			'datamachine-socials bluesky'   => Commands\BlueskyCommand::class,
 			'datamachine-socials youtube'   => Commands\YouTubeCommand::class,
+			'datamachine-socials mastodon'  => Commands\MastodonCommand::class,
 			'datamachine-socials shares'    => Commands\SharesCommand::class,
 		);
 	}

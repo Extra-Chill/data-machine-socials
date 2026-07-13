@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Data Machine Socials
  * Plugin URI: https://github.com/Extra-Chill/data-machine-socials
- * Description: Social media extension for Data Machine. Adds support for Instagram, Twitter, Facebook, Bluesky, Threads, Pinterest, LinkedIn, and Reddit.
+ * Description: Social media extension for Data Machine. Adds support for Instagram, TikTok, YouTube, Twitter, Facebook, Bluesky, Mastodon, Threads, Pinterest, LinkedIn, Tumblr, and Reddit.
  * Version: 0.16.0
  * Requires at least: 6.9
  * Requires PHP: 8.2
@@ -95,6 +95,12 @@ function datamachine_socials_bootstrap() {
 	new \DataMachineSocials\Abilities\Bluesky\BlueskyUpdateAbility();
 	new \DataMachineSocials\Abilities\Bluesky\BlueskyDeleteAbility();
 
+	// Mastodon
+	new \DataMachineSocials\Abilities\Mastodon\MastodonPublishAbility();
+	new \DataMachineSocials\Abilities\Mastodon\MastodonReadAbility();
+	new \DataMachineSocials\Abilities\Mastodon\MastodonUpdateAbility();
+	new \DataMachineSocials\Abilities\Mastodon\MastodonDeleteAbility();
+
 	// Threads
 	new \DataMachineSocials\Abilities\Threads\ThreadsPublishAbility();
 	new \DataMachineSocials\Abilities\Threads\ThreadsReadAbility();
@@ -107,6 +113,10 @@ function datamachine_socials_bootstrap() {
 	new \DataMachineSocials\Abilities\Instagram\InstagramUpdateAbility();
 	new \DataMachineSocials\Abilities\Instagram\InstagramDeleteAbility();
 	new \DataMachineSocials\Abilities\Instagram\InstagramCommentReplyAbility();
+
+	// TikTok
+	new \DataMachineSocials\Abilities\TikTok\TikTokPublishAbility();
+	new \DataMachineSocials\Abilities\TikTok\TikTokReadAbility();
 
 	// Pinterest
 	new \DataMachineSocials\Abilities\Pinterest\PinterestReadAbility();
@@ -131,14 +141,24 @@ function datamachine_socials_bootstrap() {
 	new \DataMachineSocials\Abilities\YouTube\YouTubeSearchAbility();
 	new \DataMachineSocials\Abilities\YouTube\YouTubeAccountAbility();
 
+	// Tumblr
+	new \DataMachineSocials\Abilities\Tumblr\TumblrPublishAbility();
+	new \DataMachineSocials\Abilities\Tumblr\TumblrReadAbility();
+	new \DataMachineSocials\Abilities\Tumblr\TumblrUpdateAbility();
+	new \DataMachineSocials\Abilities\Tumblr\TumblrDeleteAbility();
+	new \DataMachineSocials\Abilities\Tumblr\TumblrEngageAbility();
+
 	// Social Handlers
 	new \DataMachineSocials\Handlers\Twitter\Twitter();
 	new \DataMachineSocials\Handlers\Facebook\Facebook();
 	new \DataMachineSocials\Handlers\Threads\Threads();
 	new \DataMachineSocials\Handlers\Bluesky\Bluesky();
+	new \DataMachineSocials\Handlers\Mastodon\Mastodon();
 	new \DataMachineSocials\Handlers\Pinterest\Pinterest();
 	new \DataMachineSocials\Handlers\Instagram\Instagram();
+	new \DataMachineSocials\Handlers\TikTok\TikTok();
 	new \DataMachineSocials\Handlers\LinkedIn\LinkedIn();
+	new \DataMachineSocials\Handlers\Tumblr\Tumblr();
 
 	// Reddit (Fetch)
 	new \DataMachineSocials\Handlers\Reddit\Reddit();
@@ -283,6 +303,7 @@ function datamachine_socials_load_chat_tools() {
 	new \DataMachineSocials\Chat\Tools\PublishInstagram();
 	new \DataMachineSocials\Chat\Tools\PublishReelInstagram();
 	new \DataMachineSocials\Chat\Tools\PublishStoryInstagram();
+	new \DataMachineSocials\Chat\Tools\PublishTikTok();
 	new \DataMachineSocials\Chat\Tools\PublishTwitter();
 	new \DataMachineSocials\Chat\Tools\PublishFacebook();
 	new \DataMachineSocials\Chat\Tools\PublishBluesky();
@@ -306,6 +327,10 @@ function datamachine_socials_load_chat_tools() {
 	new \DataMachineSocials\Chat\Tools\ReadLinkedIn();
 	new \DataMachineSocials\Chat\Tools\UpdateLinkedIn();
 	new \DataMachineSocials\Chat\Tools\DeleteLinkedIn();
+
+	// Tumblr chat tools
+	new \DataMachineSocials\Chat\Tools\PublishTumblr();
+	new \DataMachineSocials\Chat\Tools\ReadTumblr();
 
 	// Delete chat tools
 	new \DataMachineSocials\Chat\Tools\DeleteInstagram();
