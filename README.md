@@ -1,6 +1,6 @@
 # Data Machine Socials
 
-Social media publishing extension for [Data Machine](https://github.com/Extra-Chill/data-machine). Enables automated publishing to Twitter/X, Facebook Pages, Bluesky, Mastodon, Threads, and Pinterest.
+Social media publishing extension for [Data Machine](https://github.com/Extra-Chill/data-machine). Enables automated publishing to Twitter/X, Facebook Pages, Bluesky, Mastodon, Threads, Pinterest, Tumblr, and TikTok.
 
 ## Requirements
 
@@ -25,6 +25,7 @@ Social media publishing extension for [Data Machine](https://github.com/Extra-Ch
 | **Mastodon / Fediverse** | OAuth 2.0 token | Instance-configurable | One image |
 | **Threads** | OAuth 2.0 | 500 chars | Images |
 | **Pinterest** | Bearer Token | N/A (pins) | Images required |
+| **Tumblr** | OAuth 2.0 | No documented text limit | Text posts; native media upload is not included |
 
 ## Configuration
 
@@ -64,6 +65,12 @@ Each platform requires authentication setup:
 - Generate an access token
 - Configure default board or use category mapping
 
+**Tumblr:**
+- Register an app at [www.tumblr.com/oauth/apps](https://www.tumblr.com/oauth/apps)
+- Configure its OAuth Consumer Key and OAuth Consumer Secret
+- Complete OAuth 2.0 with the `basic write offline_access` scopes
+- Set the target blog identifier in the Tumblr publish-handler settings
+
 ## Usage in Pipelines
 
 Once authenticated, social handlers appear in the Data Machine Pipeline Builder:
@@ -85,6 +92,7 @@ Social handlers register AI tools that can be used in Data Machine Chat:
 - `bluesky_publish` - Post to Bluesky
 - `threads_publish` - Post to Threads
 - `pinterest_publish` - Create Pinterest pins
+- `tumblr_publish` - Create Tumblr NPF text posts
 
 ## Architecture
 
