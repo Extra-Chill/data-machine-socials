@@ -56,9 +56,9 @@ class FetchRedditAbility extends AbstractSocialAbility {
 							),
 							'sort_by'           => array(
 								'type'        => 'string',
-								'enum'        => array( 'hot', 'new', 'top', 'rising', 'controversial', 'relevance' ),
+								'enum'        => array( 'hot', 'new', 'top', 'rising', 'controversial', 'relevance', 'comments' ),
 								'default'     => 'hot',
-								'description' => __( 'Sort order for posts. Use "relevance" for global search.', 'data-machine-socials' ),
+								'description' => __( 'Sort order for posts. Search supports relevance, hot, top, new, and comments.', 'data-machine-socials' ),
 							),
 							'timeframe_limit'   => array(
 								'type'        => 'string',
@@ -248,7 +248,9 @@ class FetchRedditAbility extends AbstractSocialAbility {
 			);
 		}
 
-		$valid_sorts = array( 'hot', 'new', 'top', 'rising', 'controversial', 'relevance' );
+		$valid_sorts = ! empty( $query )
+			? array( 'relevance', 'hot', 'top', 'new', 'comments' )
+			: array( 'hot', 'new', 'top', 'rising', 'controversial' );
 		if ( ! in_array( $sort, $valid_sorts, true ) ) {
 			$logs[] = array(
 				'level'   => 'error',
@@ -294,8 +296,6 @@ class FetchRedditAbility extends AbstractSocialAbility {
 				$timeframe_limit,
 				$fetch_batch_size,
 				$after_param,
-				$is_global_search,
-				$is_subreddit_search,
 				$logs
 			);
 
@@ -323,21 +323,22 @@ class FetchRedditAbility extends AbstractSocialAbility {
 				)
 			);
 
-			if ( ! $result['success'] ) {
+			if ( is_wp_error( $result ) ) {
 				if ( 1 === $pages_fetched ) {
+					$error_message = $result->get_error_message();
+
 					$logs[] = array(
 						'level'   => 'error',
 						'message' => 'Reddit: API request failed.',
-						'data'    => array( 'error' => $result['error'] ),
+						'data'    => array( 'error' => $error_message ),
 					);
-					return new \WP_Error(
-						'api_error',
-						$result['error'],
-						array(
-							'status' => 500,
-							'logs'   => $logs,
-						)
-					);
+
+					$error_data         = $result->get_error_data();
+					$error_data         = is_array( $error_data ) ? $error_data : array();
+					$error_data['logs'] = $logs;
+					$result->add_data( $error_data );
+
+					return $result;
 				} else {
 					break;
 				}
@@ -671,8 +672,6 @@ class FetchRedditAbility extends AbstractSocialAbility {
 	 * @param string      $timeframe_limit     Timeframe filter.
 	 * @param int         $fetch_batch_size    Number of posts per page.
 	 * @param string|null $after_param         Pagination cursor.
-	 * @param bool        $is_global_search    Whether this is a global search.
-	 * @param bool        $is_subreddit_search Whether this is a search within a subreddit.
 	 * @param array       &$logs               Log entries array (passed by reference).
 	 * @return string The full Reddit API URL.
 	 */
@@ -683,8 +682,6 @@ class FetchRedditAbility extends AbstractSocialAbility {
 		string $timeframe_limit,
 		int $fetch_batch_size,
 		?string $after_param,
-		bool $is_global_search,
-		bool $is_subreddit_search,
 		array &$logs
 	): string {
 		$base = 'https://oauth.reddit.com';
@@ -700,7 +697,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 			'1_year'   => 'year',
 		);
 
-		if ( $is_global_search || $is_subreddit_search ) {
+		if ( ! empty( $query ) ) {
 			// Search endpoint: /search.json or /r/{subreddit}/search.json
 			$params = array(
 				'q'     => $query,
@@ -722,7 +719,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 				);
 			}
 
-			if ( $is_subreddit_search ) {
+			if ( ! empty( $subreddit ) ) {
 				$params['restrict_sr'] = 'on';
 				$endpoint              = "/r/{$subreddit}/search.json";
 			} else {
@@ -776,14 +773,69 @@ class FetchRedditAbility extends AbstractSocialAbility {
 		$response = wp_remote_get( $url, $args );
 
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 500 ) );
+			return new \WP_Error(
+				'api_error',
+				sprintf( 'Reddit API request failed: %s', $response->get_error_message() ),
+				array(
+					'status'        => 500,
+					'upstream_code' => $response->get_error_code(),
+				)
+			);
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );
 		$body        = wp_remote_retrieve_body( $response );
+		if ( $status_code < 200 || $status_code >= 300 ) {
+			$response_data    = json_decode( $body, true );
+			$response_data    = is_array( $response_data ) ? $response_data : array();
+			$upstream_error   = $response_data['error'] ?? null;
+			$upstream_code    = is_array( $upstream_error ) ? ( $upstream_error['code'] ?? null ) : $upstream_error;
+			$upstream_message = is_array( $upstream_error ) ? ( $upstream_error['message'] ?? '' ) : '';
+			$upstream_message = $response_data['message'] ?? $response_data['error_description'] ?? $response_data['reason'] ?? $upstream_message;
+
+			if ( ! is_scalar( $upstream_message ) || '' === trim( (string) $upstream_message ) ) {
+				$upstream_message = wp_remote_retrieve_response_message( $response );
+			}
+			if ( '' === trim( (string) $upstream_message ) && is_scalar( $upstream_code ) ) {
+				$upstream_message = (string) $upstream_code;
+			}
+			if ( '' === trim( (string) $upstream_message ) ) {
+				$upstream_message = 'Reddit API request failed';
+			}
+
+			$error_context = sprintf( 'HTTP %d', $status_code );
+			if ( is_scalar( $upstream_code ) && '' !== trim( (string) $upstream_code ) && (string) $status_code !== (string) $upstream_code ) {
+				$error_context .= sprintf( ', code %s', (string) $upstream_code );
+			}
+
+			$error_data = array(
+				'status'           => $status_code > 0 ? $status_code : 500,
+				'upstream_message' => (string) $upstream_message,
+			);
+			if ( is_scalar( $upstream_code ) && '' !== trim( (string) $upstream_code ) ) {
+				$error_data['upstream_code'] = $upstream_code;
+			}
+
+			$rate_limit_headers = array(
+				'retry_after' => wp_remote_retrieve_header( $response, 'retry-after' ),
+				'remaining'   => wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' ),
+				'used'        => wp_remote_retrieve_header( $response, 'x-ratelimit-used' ),
+				'reset'       => wp_remote_retrieve_header( $response, 'x-ratelimit-reset' ),
+			);
+			$rate_limit_headers = array_filter( $rate_limit_headers, static fn( $value ): bool => '' !== (string) $value );
+			if ( ! empty( $rate_limit_headers ) ) {
+				$error_data['rate_limit'] = $rate_limit_headers;
+			}
+
+			return new \WP_Error(
+				'api_error',
+				sprintf( 'Reddit API request failed (%s): %s', $error_context, (string) $upstream_message ),
+				$error_data
+			);
+		}
 
 		return array(
-			'success'     => $status_code >= 200 && $status_code < 300,
+			'success'     => true,
 			'status_code' => $status_code,
 			'data'        => $body,
 		);
@@ -803,7 +855,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 			)
 		);
 
-		if ( $comments_result['success'] ) {
+		if ( ! is_wp_error( $comments_result ) && $comments_result['success'] ) {
 			$comments_data = json_decode( $comments_result['data'], true );
 			if ( json_last_error() === JSON_ERROR_NONE ) {
 				if ( is_array( $comments_data ) && isset( $comments_data[1]['data']['children'] ) ) {
