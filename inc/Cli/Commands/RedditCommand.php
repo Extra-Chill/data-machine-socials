@@ -541,14 +541,21 @@ class RedditCommand {
 	 *     wp datamachine-socials reddit fetch Austin --query="live music tonight"
 	 */
 	public function fetch( $args, $assoc_args ) {
-		$subreddit    = $args[0] ?? '';
-		$query        = $assoc_args['query'] ?? '';
-		$access_token = $this->get_access_token();
+		$subreddit = $args[0] ?? '';
+		$query     = $assoc_args['query'] ?? '';
 
 		// Validate: must have at least one of subreddit or query.
 		if ( empty( $subreddit ) && empty( $query ) ) {
 			WP_CLI::error( 'Provide a subreddit name or --query (or both).' );
 		}
+
+		try {
+			$limit_input = $this->applyFetchLimit( array(), $assoc_args );
+		} catch ( \InvalidArgumentException $exception ) {
+			WP_CLI::error( $exception->getMessage() );
+		}
+
+		$access_token = $this->get_access_token();
 
 		// Default sort to 'relevance' for search queries.
 		$default_sort = ! empty( $query ) ? 'relevance' : 'hot';
@@ -568,11 +575,7 @@ class RedditCommand {
 			'max_pages'         => 5,
 			'download_images'   => false, // CLI doesn't download images by default.
 		);
-		try {
-			$input = $this->applyFetchLimit( $input, $assoc_args );
-		} catch ( \InvalidArgumentException $exception ) {
-			WP_CLI::error( $exception->getMessage() );
-		}
+		$input = array_merge( $input, $limit_input );
 
 		if ( ! empty( $subreddit ) && ! empty( $query ) ) {
 			WP_CLI::log( "Searching r/{$subreddit} for \"{$query}\" (sort: {$input['sort_by']})..." );
