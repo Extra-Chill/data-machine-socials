@@ -513,6 +513,9 @@ class RedditCommand {
 	 * [--search=<search>]
 	 * : Comma-separated search terms to filter posts locally (client-side).
 	 *
+	 * [--limit=<count>]
+	 * : Maximum eligible posts to return. Must be between 1 and 500.
+	 *
 	 * [--format=<format>]
 	 * : Output format.
 	 * ---
@@ -527,11 +530,11 @@ class RedditCommand {
 	 *
 	 *     # Fetch from a subreddit
 	 *     wp datamachine-socials reddit fetch jambands
-	 *     wp datamachine-socials reddit fetch festivals --sort=top --min-upvotes=50
+	 *     wp datamachine-socials reddit fetch festivals --sort=top --min-upvotes=50 --limit=25
 	 *     wp datamachine-socials reddit fetch bonnaroo --timeframe=7_days --comments=5
 	 *
 	 *     # Global search across all of Reddit
-	 *     wp datamachine-socials reddit fetch --query="best live music calendar" --sort=relevance --timeframe=30_days
+	 *     wp datamachine-socials reddit fetch --query="best live music calendar" --sort=relevance --timeframe=30_days --limit=10
 	 *     wp datamachine-socials reddit fetch --query="concert events near me" --min-upvotes=5 --comments=3
 	 *
 	 *     # Search within a specific subreddit
@@ -565,6 +568,11 @@ class RedditCommand {
 			'max_pages'         => 5,
 			'download_images'   => false, // CLI doesn't download images by default.
 		);
+		try {
+			$input = $this->applyFetchLimit( $input, $assoc_args );
+		} catch ( \InvalidArgumentException $exception ) {
+			WP_CLI::error( $exception->getMessage() );
+		}
 
 		if ( ! empty( $subreddit ) && ! empty( $query ) ) {
 			WP_CLI::log( "Searching r/{$subreddit} for \"{$query}\" (sort: {$input['sort_by']})..." );
@@ -622,6 +630,23 @@ class RedditCommand {
 
 		WP_CLI::success( count( $rows ) . ' posts found' );
 		WP_CLI\Utils\format_items( 'table', $rows, array( 'score', 'comments', 'subreddit', 'author', 'title' ) );
+	}
+
+	/**
+	 * Validate and map the optional CLI limit to the direct ability contract.
+	 */
+	private function applyFetchLimit( array $input, array $assoc_args ): array {
+		if ( ! array_key_exists( 'limit', $assoc_args ) ) {
+			return $input;
+		}
+
+		$limit = $assoc_args['limit'];
+		if ( ! is_string( $limit ) || ! preg_match( '/^[1-9][0-9]*$/', $limit ) || (int) $limit > 500 ) {
+			throw new \InvalidArgumentException( '--limit must be a whole number between 1 and 500.' );
+		}
+
+		$input['max_items'] = (int) $limit;
+		return $input;
 	}
 
 	/**
