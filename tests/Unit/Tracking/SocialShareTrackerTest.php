@@ -212,6 +212,17 @@ class SocialShareTrackerTest extends WP_UnitTestCase {
 		$this->assertFalse( SocialShareTracker::record( $this->post_id, '', 'id1' ) );
 	}
 
+	public function test_record_reports_receipt_persistence_failure(): void {
+		$reject_update = static fn() => false;
+		add_filter( 'update_post_metadata', $reject_update );
+
+		$result = SocialShareTracker::record( $this->post_id, 'instagram', 'ig1' );
+
+		remove_filter( 'update_post_metadata', $reject_update );
+		$this->assertFalse( $result );
+		$this->assertSame( array(), SocialShareTracker::get_shares( $this->post_id ) );
+	}
+
 	public function test_get_operation_share_returns_only_matching_durable_receipt(): void {
 		$operation_ref = 'dop_' . str_repeat( 'a', 64 );
 		SocialShareTracker::record_from_result(

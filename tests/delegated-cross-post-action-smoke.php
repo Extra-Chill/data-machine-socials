@@ -10,6 +10,7 @@ namespace {
 
 	$GLOBALS['delegated_cross_post_filters'] = array();
 	$GLOBALS['delegated_cross_post_jobs']    = array();
+	$GLOBALS['delegated_cross_post_shares']  = array();
 
 	class WP_Error {
 		public function __construct( private string $code, private string $message ) {}
@@ -138,6 +139,14 @@ namespace DataMachineSocials {
 	}
 }
 
+namespace DataMachineSocials\Tracking {
+	class SocialShareTracker {
+		public static function get_operation_share( int $post_id, string $platform, string $operation_ref ): ?array {
+			return $GLOBALS['delegated_cross_post_shares'][ $post_id ][ $platform ][ $operation_ref ] ?? null;
+		}
+	}
+}
+
 namespace {
 	require_once dirname( __DIR__ ) . '/inc/Operations/DelegatedCrossPostAction.php';
 	require_once dirname( __DIR__ ) . '/inc/Tasks/SocialCrossPostTask.php';
@@ -170,8 +179,10 @@ namespace {
 	DelegatedCrossPostAction::register();
 	$actions = apply_filters( 'datamachine_delegated_operation_actions', array() );
 	$action  = $actions[ DelegatedCrossPostAction::ACTION_ID ] ?? array();
-	$assert( array( 'version', 'normalize_input', 'authorize', 'prepare', 'project' ) === array_keys( $action ), 'registers the exact Data Machine owner callback contract without unsafe retry' );
-	$assert( is_callable( $action['normalize_input'] ?? null ) && is_callable( $action['authorize'] ?? null ) && is_callable( $action['prepare'] ?? null ) && is_callable( $action['project'] ?? null ), 'all required owner callbacks are callable' );
+	$assert( array( 'version', 'normalize_input', 'authorize', 'prepare', 'project', 'retry' ) === array_keys( $action ), 'registers the exact Data Machine owner callback contract with safe retry reconciliation' );
+	$assert( is_callable( $action['normalize_input'] ?? null ) && is_callable( $action['authorize'] ?? null ) && is_callable( $action['prepare'] ?? null ) && is_callable( $action['project'] ?? null ) && is_callable( $action['retry'] ?? null ), 'all owner callbacks are callable' );
+	$bootstrap = file_get_contents( dirname( __DIR__ ) . '/data-machine-socials.php' );
+	$assert( is_string( $bootstrap ) && str_contains( $bootstrap, 'DelegatedCrossPostAction::register()' ), 'plugin bootstrap installs the delegated action registration filter' );
 
 	$normalized = $action['normalize_input']( $input, array( 'phase' => 'submit' ) );
 	$assert( ! is_wp_error( $normalized ), 'valid canonical input normalizes' );
@@ -215,6 +226,15 @@ namespace {
 	$raw_asset['asset_refs'][0]['url'] = 'https://attacker.example/image.jpg';
 	$asset_error                       = $action['normalize_input']( $raw_asset, array() );
 	$assert( is_wp_error( $asset_error ) && 'social_cross_post_invalid_asset_ref' === $asset_error->get_error_code(), 'raw asset URLs cannot bypass registered attachment references' );
+	$unknown_input              = $input;
+	$unknown_input['task_type'] = 'arbitrary_task';
+	$assert( is_wp_error( $action['normalize_input']( $unknown_input, array() ) ), 'undeclared task or handler selectors fail before enqueue' );
+	$string_post            = $input;
+	$string_post['post_id'] = '42';
+	$assert( is_wp_error( $action['normalize_input']( $string_post, array() ) ), 'canonical identifiers do not coerce string integers' );
+	$duplicate_channels             = $input;
+	$duplicate_channels['channels'] = array( 'twitter', 'twitter' );
+	$assert( is_wp_error( $action['normalize_input']( $duplicate_channels, array() ) ), 'duplicate channels do not normalize ambiguously' );
 
 	$task = new SocialCrossPostTask();
 	$task->executeTask(
@@ -253,6 +273,15 @@ namespace {
 	$encoded_projection = json_encode( $projection );
 	$assert( ! str_contains( $encoded_projection, 'private' ) && ! str_contains( $encoded_projection, 'token' ), 'projection redacts content, credentials, and provider diagnostics' );
 	$assert( array() === $action['project']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'executing' ), array() ), 'active operation envelopes expose no premature result projection' );
+	$retry_context = array(
+		'operation_ref' => 'dop_' . str_repeat( 'a', 64 ),
+		'input'         => $normalized,
+	);
+	$GLOBALS['delegated_cross_post_shares'][42]['instagram'][ $retry_context['operation_ref'] ] = array( 'platform_post_id' => 'instagram-123' );
+	$assert( true === $action['retry']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'failed - delegated_cross_post_partial', 'packet_refs' => $packet_refs ), $retry_context ), 'retry reconciles the durable successful effect and failed channel' );
+	unset( $GLOBALS['delegated_cross_post_shares'][42]['instagram'][ $retry_context['operation_ref'] ] );
+	$unsafe_retry = $action['retry']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'failed - delegated_cross_post_partial', 'packet_refs' => $packet_refs ), $retry_context );
+	$assert( is_wp_error( $unsafe_retry ) && 'social_cross_post_retry_unsafe' === $unsafe_retry->get_error_code(), 'retry fails closed when a successful effect has no durable tracker receipt' );
 	$task->executeTask( 52, array_merge( $settings['params'], array( 'platforms' => array( 'twitter' ) ) ) );
 	$failed_packets = $GLOBALS['delegated_cross_post_jobs'][52]['output_data_packets'] ?? array();
 	$failed_ref     = array(
@@ -264,6 +293,11 @@ namespace {
 	$failed_projection = $action['project']( array( 'status' => 'failed', 'packet_refs' => array( $failed_ref ) ), array() );
 	$assert( 'failed - delegated_cross_post_failed' === ( $GLOBALS['delegated_cross_post_jobs'][52]['job_status'] ?? null ) && false === ( $failed_packets[0]['metadata']['success'] ?? null ), 'total delegated failure terminates without scheduling an unsafe owner retry' );
 	$assert( 'failure' === ( $failed_projection['classification'] ?? null ) && 0 === ( $failed_projection['effect_count'] ?? null ), 'total provider failure projects a bounded failure rather than success' );
+	$twitter_context                      = $retry_context;
+	$twitter_context['input']['channels'] = array( 'twitter' );
+	$assert( true === $action['retry']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'failed', 'packet_refs' => array( $failed_ref ) ), $twitter_context ), 'a fully accounted provider failure is safe to retry' );
+	$receipt_failure_ref = array_replace( $failed_ref, array( 'source_item_id' => 'delivery_receipt_failed' ) );
+	$assert( is_wp_error( $action['retry']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'failed', 'packet_refs' => array( $receipt_failure_ref ) ), $twitter_context ) ), 'missing durable receipt is never declared retry-safe' );
 
 	$empty             = $normalized;
 	$empty['platforms'] = array();
