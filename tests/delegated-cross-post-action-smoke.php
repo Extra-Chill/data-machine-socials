@@ -170,7 +170,7 @@ namespace {
 	DelegatedCrossPostAction::register();
 	$actions = apply_filters( 'datamachine_delegated_operation_actions', array() );
 	$action  = $actions[ DelegatedCrossPostAction::ACTION_ID ] ?? array();
-	$assert( array( 'version', 'normalize_input', 'authorize', 'prepare', 'project' ) === array_keys( $action ), 'registers the exact Data Machine owner callback contract without retry' );
+	$assert( array( 'version', 'normalize_input', 'authorize', 'prepare', 'project' ) === array_keys( $action ), 'registers the exact Data Machine owner callback contract without unsafe retry' );
 	$assert( is_callable( $action['normalize_input'] ?? null ) && is_callable( $action['authorize'] ?? null ) && is_callable( $action['prepare'] ?? null ) && is_callable( $action['project'] ?? null ), 'all required owner callbacks are callable' );
 
 	$normalized = $action['normalize_input']( $input, array( 'phase' => 'submit' ) );
@@ -225,8 +225,8 @@ namespace {
 		)
 	);
 	$packets = $GLOBALS['delegated_cross_post_jobs'][50]['output_data_packets'] ?? array();
-	$assert( 'completed' === ( $GLOBALS['delegated_cross_post_jobs'][50]['_status'] ?? null ) && 2 === count( $packets ), 'partial delivery completes with canonical result packets' );
-	$assert( true === $packets[1]['metadata']['success'], 'partial provider failure remains a successful owner step with bounded error projection' );
+	$assert( 'completed' === ( $GLOBALS['delegated_cross_post_jobs'][50]['_status'] ?? null ) && 2 === count( $packets ), 'partial delivery completes its child task with canonical result packets' );
+	$assert( 'failed - delegated_cross_post_partial' === ( $GLOBALS['delegated_cross_post_jobs'][50]['job_status'] ?? null ) && false === $packets[1]['metadata']['success'], 'partial provider failure terminates the delegated run for explicit retry' );
 
 	$packet_refs = array_map(
 		static fn( array $packet ): array => array(

@@ -114,15 +114,9 @@ class Publisher {
 					'replayed'         => true,
 				)
 				: self::post_to_platform( $platform, $images, $caption, $source_url, $extra );
-			$results[]      = $result;
-
-			if ( ! $result['success'] ) {
-				$errors[] = $platform . ': ' . $result['error'];
-			}
-
 			// Track successful shares via SocialShareTracker when post_id is available.
 			if ( $post_id && ! $existing_share && ! empty( $result['success'] ) ) {
-				SocialShareTracker::record_from_result(
+				$recorded = SocialShareTracker::record_from_result(
 					$post_id,
 					$platform,
 					$result,
@@ -131,6 +125,18 @@ class Publisher {
 						'operation_ref' => $operation_ref,
 					)
 				);
+				if ( '' !== $operation_ref && ! $recorded ) {
+					$result = array(
+						'platform' => $platform,
+						'success'  => false,
+						'error'    => 'delivery_receipt_failed',
+					);
+				}
+			}
+
+			$results[] = $result;
+			if ( ! $result['success'] ) {
+				$errors[] = $platform . ': ' . $result['error'];
 			}
 		}
 

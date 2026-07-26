@@ -250,7 +250,7 @@ final class DelegatedCrossPostAction {
 				);
 			} elseif ( 'social_share_error' === ( $ref['type'] ?? '' ) ) {
 				$code = (string) ( $ref['source_item_id'] ?? '' );
-				if ( in_array( $code, array( 'channel_unavailable', 'publish_failed' ), true ) ) {
+				if ( in_array( $code, array( 'channel_unavailable', 'publish_failed', 'delivery_receipt_failed' ), true ) ) {
 					$error_codes[] = array(
 						'channel' => $channel,
 						'code'    => $code,
@@ -279,6 +279,10 @@ final class DelegatedCrossPostAction {
 
 	/** Map private provider failures to bounded public codes. */
 	public static function classify_error( $error ): string {
+		if ( 'delivery_receipt_failed' === $error ) {
+			return 'delivery_receipt_failed';
+		}
+
 		return is_string( $error ) && str_contains( $error, 'not registered' ) ? 'channel_unavailable' : 'publish_failed';
 	}
 

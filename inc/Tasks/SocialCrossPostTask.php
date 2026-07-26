@@ -104,16 +104,19 @@ class SocialCrossPostTask extends SystemTask {
 		);
 
 		if ( '' !== $operation_ref ) {
-			$completion_data['output_data_packets']    = self::delegated_result_packets( $results, ! empty( $successes ) );
+			$completion_data['output_data_packets']    = self::delegated_result_packets( $results );
 			$completion_data['suppress_result_packet'] = true;
 		}
 
+		if ( '' !== $operation_ref && ! empty( $errors ) ) {
+			$completion_data['job_status'] = empty( $successes )
+				? 'failed - delegated_cross_post_failed'
+				: 'failed - delegated_cross_post_partial';
+			$this->completeJob( $jobId, $completion_data );
+			return;
+		}
+
 		if ( empty( $successes ) ) {
-			if ( '' !== $operation_ref ) {
-				$completion_data['job_status'] = 'failed - delegated_cross_post_failed';
-				$this->completeJob( $jobId, $completion_data );
-				return;
-			}
 			$this->failJob( $jobId, 'All platforms failed: ' . implode( '; ', $errors ) );
 			return;
 		}
@@ -124,11 +127,10 @@ class SocialCrossPostTask extends SystemTask {
 	/**
 	 * Build safe canonical packet references for delegated projection.
 	 *
-	 * @param array $results       Publisher results.
-	 * @param bool  $has_successes Whether at least one platform published.
+	 * @param array $results Publisher results.
 	 * @return array
 	 */
-	private static function delegated_result_packets( array $results, bool $has_successes ): array {
+	private static function delegated_result_packets( array $results ): array {
 		$packets = array();
 		foreach ( $results as $result ) {
 			$platform = sanitize_key( (string) ( $result['platform'] ?? '' ) );
@@ -149,7 +151,7 @@ class SocialCrossPostTask extends SystemTask {
 					'source_type'    => 'datamachine_socials_cross_post',
 					'source_id'      => $platform,
 					'source_item_id' => $item_ref,
-					'success'        => $success || $has_successes,
+					'success'        => $success,
 				),
 			);
 		}
