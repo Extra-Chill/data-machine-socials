@@ -245,32 +245,22 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 			static function () use ( &$request_count ): array {
 				++$request_count;
 				if ( 1 === $request_count ) {
-					return array(
-						'response' => array( 'code' => 200 ),
-						'body'     => wp_json_encode(
+					return self::redditListingResponse(
+						'page-2',
+						array(
 							array(
-								'data' => array(
-									'after'    => 'page-2',
-									'children' => array(
-										array(
-											'kind' => 't3',
-											'data' => array(
-												'id'           => 'first',
-												'title'        => 'First post',
-												'selftext'     => '',
-												'created_utc'  => time(),
-												'score'        => 1,
-												'num_comments' => 0,
-												'permalink'    => '/r/WordPress/comments/first/',
-												'subreddit'    => 'WordPress',
-												'author'       => 'reddit_user',
-												'is_self'      => true,
-											),
-										),
-									),
-								),
-							)
-						),
+								'id'           => 'first',
+								'title'        => 'First post',
+								'selftext'     => '',
+								'created_utc'  => time(),
+								'score'        => 1,
+								'num_comments' => 0,
+								'permalink'    => '/r/WordPress/comments/first/',
+								'subreddit'    => 'WordPress',
+								'author'       => 'reddit_user',
+								'is_self'      => true,
+							),
+						)
 					);
 				}
 
@@ -302,17 +292,7 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 			static function ( $preempt, $args, $url ) use ( &$request_url ) {
 				$request_url = $url;
 
-				return array(
-					'response' => array( 'code' => 200 ),
-					'body'     => wp_json_encode(
-						array(
-							'data' => array(
-								'after'    => null,
-								'children' => array(),
-							),
-						)
-					),
-				);
+				return self::redditListingResponse( null, array() );
 			},
 			10,
 			3
@@ -417,6 +397,29 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 			},
 			10,
 			3
+		);
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $posts
+	 */
+	private static function redditListingResponse( ?string $after, array $posts ): array {
+		return array(
+			'response' => array( 'code' => 200 ),
+			'body'     => wp_json_encode(
+				array(
+					'data' => array(
+						'after'    => $after,
+						'children' => array_map(
+							static fn( array $post ): array => array(
+								'kind' => 't3',
+								'data' => $post,
+							),
+							$posts
+						),
+					),
+				)
+			),
 		);
 	}
 

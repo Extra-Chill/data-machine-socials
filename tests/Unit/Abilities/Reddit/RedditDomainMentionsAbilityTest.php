@@ -34,27 +34,20 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 	}
 
 	public function test_reports_direct_and_self_text_mentions_with_dedupe_owners_and_subdomains(): void {
+		$direct_post = $this->redditPost(
+			'direct-1',
+			array(
+				'author'  => 'Own_User',
+				'is_self' => false,
+				'url'     => 'https://news.example.org/story',
+			)
+		);
+
 		$this->mockSearches(
 			array(
-				'url:example.org' => array(
-					$this->redditPost(
-						'direct-1',
-						array(
-							'author'  => 'Own_User',
-							'is_self' => false,
-							'url'     => 'https://news.example.org/story',
-						)
-					),
-				),
+				'url:example.org' => array( $direct_post ),
 				'example.org'     => array(
-					$this->redditPost(
-						'direct-1',
-						array(
-							'author'  => 'Own_User',
-							'is_self' => false,
-							'url'     => 'https://news.example.org/story',
-						)
-					),
+					$direct_post,
 					$this->redditPost(
 						'text-1',
 						array(
