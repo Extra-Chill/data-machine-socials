@@ -158,6 +158,9 @@ class TwitterPublishAbility extends AbstractSocialAbility {
 		if ( in_array( $media_kind, array( 'image', 'carousel' ), true ) && empty( $media_path ) && empty( $image_urls ) ) {
 			return new \WP_Error( 'missing_param', 'Media is required for image publishing', array( 'status' => 400 ) );
 		}
+		if ( in_array( $media_kind, array( 'image', 'carousel' ), true ) && ! empty( $media_path ) && ! file_exists( $media_path ) ) {
+			return new \WP_Error( 'invalid_media_url', 'The required media file is unavailable', array( 'status' => 400 ) );
+		}
 
 		$auth     = new AuthAbilities();
 		$provider = $auth->getProvider( 'twitter' );

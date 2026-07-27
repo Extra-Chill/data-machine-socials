@@ -109,6 +109,13 @@ namespace {
 			'media_kind' => 'image',
 		)
 	);
+	$missing_twitter_file = \DataMachineSocials\Abilities\Twitter\TwitterPublishAbility::execute_publish(
+		array(
+			'content'    => 'Strict image delivery.',
+			'media_kind' => 'image',
+			'media_path' => __DIR__ . '/missing-image.jpg',
+		)
+	);
 
 	$failures = array();
 	if ( ! is_wp_error( $facebook ) || 'media_upload_failed' !== $facebook->get_error_code() ) {
@@ -119,6 +126,9 @@ namespace {
 	}
 	if ( ! is_wp_error( $twitter ) || 'missing_param' !== $twitter->get_error_code() ) {
 		$failures[] = 'Twitter image publishing must require media.';
+	}
+	if ( ! is_wp_error( $missing_twitter_file ) || 'invalid_media_url' !== $missing_twitter_file->get_error_code() ) {
+		$failures[] = 'Twitter image publishing must reject an unavailable media path.';
 	}
 	foreach ( $GLOBALS['strict_image_http_calls'] as $call ) {
 		if ( str_contains( $call[1], '/feed' ) || str_contains( $call[1], 'createRecord' ) ) {
