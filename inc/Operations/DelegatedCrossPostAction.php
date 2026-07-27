@@ -479,7 +479,7 @@ final class DelegatedCrossPostAction {
 		$limits = array(
 			'bluesky'   => 300,
 			'facebook'  => 63206,
-			'instagram' => 2200,
+			'instagram' => max( 1, 2200 - mb_strlen( "\n\n" . $source_url ) ),
 			'pinterest' => 500,
 			'threads'   => max( 1, 498 - mb_strlen( $source_url ) ),
 			'twitter'   => 256,

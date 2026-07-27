@@ -123,17 +123,21 @@ namespace DataMachineSocials {
 	class Publisher {
 		public static function cross_post( array $params ): array {
 			$results = array();
+			$errors  = array();
 			foreach ( $params['platforms'] as $platform ) {
 				$success   = 'twitter' !== $platform;
 				$results[] = $success
 					? array( 'platform' => $platform, 'success' => true, 'platform_post_id' => $platform . '-123' )
 					: array( 'platform' => $platform, 'success' => false, 'error' => 'private provider token diagnostic', 'delivery_state' => 'undelivered' );
+				if ( ! $success ) {
+					$errors[] = 'private provider token diagnostic';
+				}
 			}
 
 			return array(
-				'success' => false,
+				'success' => array() === $errors,
 				'results' => $results,
-				'errors'  => array( 'private provider token diagnostic' ),
+				'errors'  => $errors,
 			);
 		}
 	}
@@ -235,6 +239,17 @@ namespace {
 	$duplicate_channels             = $input;
 	$duplicate_channels['channels'] = array( 'twitter', 'twitter' );
 	$assert( is_wp_error( $action['normalize_input']( $duplicate_channels, array() ) ), 'duplicate channels do not normalize ambiguously' );
+	$instagram_limit                  = 2200 - mb_strlen( "\n\n" . $input['source_url'] );
+	$instagram_boundary              = $input;
+	$instagram_boundary['channels']  = array( 'instagram' );
+	$instagram_boundary['caption']   = str_repeat( 'a', $instagram_limit );
+	$instagram_boundary['content_hash'] = hash( 'sha256', $instagram_boundary['caption'] );
+	$instagram_normalized            = $action['normalize_input']( $instagram_boundary, array() );
+	$assert( ! is_wp_error( $instagram_normalized ), 'Instagram accepts the exact caption budget after reserving its source suffix' );
+	$assert( 2200 === mb_strlen( $instagram_normalized['caption'] . "\n\n" . $instagram_normalized['source_url'] ), 'Instagram publisher receives an exact 2200-character approved caption and source suffix' );
+	$instagram_boundary['caption']      .= 'b';
+	$instagram_boundary['content_hash'] = hash( 'sha256', $instagram_boundary['caption'] );
+	$assert( is_wp_error( $action['normalize_input']( $instagram_boundary, array() ) ), 'Instagram rejects a caption that its publisher would truncate' );
 
 	$task = new SocialCrossPostTask();
 	$task->executeTask(
@@ -311,6 +326,11 @@ namespace {
 	$assert( true === $action['retry']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'failed', 'packet_refs' => array( $failed_ref ) ), $twitter_context ), 'a fully accounted provider failure is safe to retry' );
 	$receipt_failure_ref = array_replace( $failed_ref, array( 'source_item_id' => 'delivery_receipt_failed' ) );
 	$assert( is_wp_error( $action['retry']( array( 'schema_version' => 'datamachine.run_result.v1', 'status' => 'failed', 'packet_refs' => array( $receipt_failure_ref ) ), $twitter_context ) ), 'missing durable receipt is never declared retry-safe' );
+	$replay_params                                = $settings['params'];
+	$replay_params['platforms']                   = array( 'instagram' );
+	$replay_params['delegated_input']['channels'] = array( 'instagram' );
+	$task->executeTask( 53, $replay_params );
+	$assert( 'completed' === ( $GLOBALS['delegated_cross_post_jobs'][53]['job_status'] ?? null ), 'successful delegated replay clears a stale parent failure override' );
 
 	$empty_params                                = $settings['params'];
 	$empty_params['platforms']                   = array();
