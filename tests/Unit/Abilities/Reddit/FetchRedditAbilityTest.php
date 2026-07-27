@@ -357,25 +357,7 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 					'posts' => array(),
 				);
 
-				return array(
-					'response' => array( 'code' => 200 ),
-					'body'     => wp_json_encode(
-						array(
-							'data' => array(
-								'after'    => $page['after'],
-								'children' => array_map(
-									static function ( array $post ): array {
-										return array(
-											'kind' => 't3',
-											'data' => $post,
-										);
-									},
-									$page['posts']
-								),
-							),
-						)
-					),
-				);
+				return self::redditListingResponse( $page['after'], $page['posts'] );
 			},
 			10,
 			3
