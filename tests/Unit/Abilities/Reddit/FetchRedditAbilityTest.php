@@ -116,6 +116,7 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 		$this->assertTrue( $result['success'] );
 		$this->assertSame( array( 'first', 'second' ), array_column( $result['items'], 'item_id' ) );
 		$this->assertSame( 1, $request_count );
+		$this->assertTrue( $result['pagination']['truncated'] );
 	}
 
 	public function test_direct_limit_returns_fewer_items_when_source_is_exhausted(): void {
@@ -132,6 +133,7 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 
 		$this->assertTrue( $result['success'] );
 		$this->assertSame( array( 'only' ), array_column( $result['items'], 'item_id' ) );
+		$this->assertFalse( $result['pagination']['truncated'] );
 	}
 
 	public function test_direct_limit_does_not_override_collector_authority(): void {

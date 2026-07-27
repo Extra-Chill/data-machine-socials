@@ -285,6 +285,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 		$total_checked  = 0;
 		$pages_fetched  = 0;
 		$eligible_items = array();
+		$truncated      = false;
 
 		while ( $pages_fetched < $max_pages ) {
 			++$pages_fetched;
@@ -340,6 +341,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 
 					return $result;
 				} else {
+					$truncated = true;
 					break;
 				}
 			}
@@ -389,7 +391,8 @@ class FetchRedditAbility extends AbstractSocialAbility {
 				break;
 			}
 
-			foreach ( $response_data['data']['children'] as $post_wrapper ) {
+			$post_wrappers = $response_data['data']['children'];
+			foreach ( $post_wrappers as $post_index => $post_wrapper ) {
 				++$total_checked;
 				if ( empty( $post_wrapper['data'] ) || empty( $post_wrapper['data']['id'] ) || empty( $post_wrapper['kind'] ) ) {
 					$logs[] = array(
@@ -491,6 +494,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 					'comment_count'          => $item_data['num_comments'] ?? 0,
 					'author'                 => $item_data['author'] ?? '[deleted]',
 					'is_self_post'           => $item_data['is_self'] ?? false,
+					'target_url'             => $item_data['url'] ?? '',
 				);
 
 				if ( ! empty( $comments_array ) ) {
@@ -544,6 +548,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 					// surface to consult; honor only the direct-call result cap.
 					$eligible_items[] = $candidate;
 					if ( null !== $max_items && count( $eligible_items ) >= $max_items ) {
+						$truncated = $post_index < count( $post_wrappers ) - 1 || ! empty( $response_data['data']['after'] );
 						break;
 					}
 					continue;
@@ -600,6 +605,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 		// either filling the collector or running out of Reddit `after`
 		// cursors, that is "scan budget exhausted", not source exhaustion —
 		// leave `source_exhausted=false` so callers can distinguish the two.
+		$truncated = $truncated || ( $pages_fetched >= $max_pages && ! empty( $after_param ) );
 
 		// Pipeline path: emit collector accepted set as the result so handler
 		// post-processing iterates only the items the core primitive blessed.
@@ -618,9 +624,13 @@ class FetchRedditAbility extends AbstractSocialAbility {
 			);
 
 			return array(
-				'success' => true,
-				'data'    => array(),
-				'logs'    => $logs,
+				'success'    => true,
+				'data'       => array(),
+				'pagination' => array(
+					'pages_fetched' => $pages_fetched,
+					'truncated'     => $truncated,
+				),
+				'logs'       => $logs,
 			);
 		}
 
@@ -634,9 +644,13 @@ class FetchRedditAbility extends AbstractSocialAbility {
 		);
 
 		return array(
-			'success' => true,
-			'items'   => $eligible_items,
-			'logs'    => $logs,
+			'success'    => true,
+			'items'      => $eligible_items,
+			'pagination' => array(
+				'pages_fetched' => $pages_fetched,
+				'truncated'     => $truncated,
+			),
+			'logs'       => $logs,
 		);
 	}
 
