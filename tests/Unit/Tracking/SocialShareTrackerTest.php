@@ -231,7 +231,7 @@ class SocialShareTrackerTest extends WP_UnitTestCase {
 			array(
 				'success'          => true,
 				'platform_post_id' => 'ig1',
-				'platform_url'     => 'https://instagram.test/ig1',
+				'platform_url'     => 'https://www.instagram.com/p/ig1/',
 			),
 			array( 'operation_ref' => $operation_ref )
 		);
@@ -245,6 +245,15 @@ class SocialShareTrackerTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $share['operation_hash'] );
 		$this->assertNull( SocialShareTracker::get_operation_share( $this->post_id, 'instagram', 'invalid' ) );
 		$this->assertNull( SocialShareTracker::get_operation_share( $this->post_id, 'twitter', $operation_ref ) );
+	}
+
+	public function test_operation_receipt_rejects_missing_malformed_and_deleted_authority(): void {
+		$operation_ref = 'dop_' . str_repeat( 'c', 64 );
+		$this->assertFalse( SocialShareTracker::record( $this->post_id, 'instagram', '', 'https://www.instagram.com/p/invalid/', array( 'operation_ref' => $operation_ref ) ) );
+		$this->assertFalse( SocialShareTracker::record( $this->post_id, 'instagram', 'ig1', 'https://attacker.example/ig1', array( 'operation_ref' => $operation_ref ) ) );
+		$this->assertTrue( SocialShareTracker::record( $this->post_id, 'instagram', 'ig1', 'https://www.instagram.com/p/ig1/', array( 'operation_ref' => $operation_ref ) ) );
+		$this->assertTrue( SocialShareTracker::mark_deleted( $this->post_id, 'instagram', 'ig1' ) );
+		$this->assertNull( SocialShareTracker::get_operation_share( $this->post_id, 'instagram', $operation_ref ) );
 	}
 
 	public function test_multiple_platforms_same_post(): void {
