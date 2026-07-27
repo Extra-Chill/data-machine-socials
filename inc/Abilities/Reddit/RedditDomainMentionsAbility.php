@@ -34,15 +34,11 @@ class RedditDomainMentionsAbility extends AbstractSocialAbility {
 					'category'            => 'datamachine-socials',
 					'input_schema'        => array(
 						'type'       => 'object',
-						'required'   => array( 'domain', 'access_token' ),
+						'required'   => array( 'domain' ),
 						'properties' => array(
 							'domain'          => array(
 								'type'        => 'string',
 								'description' => __( 'Domain or root URL to report.', 'data-machine-socials' ),
-							),
-							'access_token'    => array(
-								'type'        => 'string',
-								'description' => __( 'Reddit OAuth access token.', 'data-machine-socials' ),
 							),
 							'owners'          => array(
 								'type'        => 'array',
@@ -73,9 +69,10 @@ class RedditDomainMentionsAbility extends AbstractSocialAbility {
 					),
 					'output_schema'       => array(
 						'type'       => 'object',
+						'required'   => array( 'success', 'report' ),
 						'properties' => array(
 							'success' => array( 'type' => 'boolean' ),
-							'report'  => array( 'type' => 'object' ),
+							'report'  => self::reportSchema(),
 							'error'   => array( 'type' => 'string' ),
 						),
 					),
@@ -91,6 +88,83 @@ class RedditDomainMentionsAbility extends AbstractSocialAbility {
 		return PermissionHelper::can( 'use_tools' );
 	}
 
+	private static function reportSchema(): array {
+		$count_map = array(
+			'type'                 => 'object',
+			'additionalProperties' => array( 'type' => 'integer' ),
+		);
+
+		return array(
+			'type'       => 'object',
+			'required'   => array( 'domain', 'owners', 'totals', 'breakdowns', 'rows', 'truncated', 'limits', 'coverage' ),
+			'properties' => array(
+				'domain'     => array( 'type' => 'string' ),
+				'owners'     => array(
+					'type'  => 'array',
+					'items' => array( 'type' => 'string' ),
+				),
+				'totals'     => array(
+					'type'       => 'object',
+					'required'   => array( 'total', 'owned', 'organic' ),
+					'properties' => array(
+						'total'   => array( 'type' => 'integer' ),
+						'owned'   => array( 'type' => 'integer' ),
+						'organic' => array( 'type' => 'integer' ),
+					),
+				),
+				'breakdowns' => array(
+					'type'       => 'object',
+					'required'   => array( 'author', 'subreddit', 'matched_host', 'date', 'year' ),
+					'properties' => array(
+						'author'       => $count_map,
+						'subreddit'    => $count_map,
+						'matched_host' => $count_map,
+						'date'         => $count_map,
+						'year'         => $count_map,
+					),
+				),
+				'rows'       => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'required'   => array( 'item_id', 'title', 'reddit_permalink', 'matched_target_url', 'matched_host', 'author', 'subreddit', 'timestamp', 'score', 'comment_count', 'match_type', 'ownership' ),
+						'properties' => array(
+							'item_id'            => array( 'type' => 'string' ),
+							'title'              => array( 'type' => 'string' ),
+							'reddit_permalink'   => array( 'type' => 'string' ),
+							'matched_target_url' => array( 'type' => 'string' ),
+							'matched_host'       => array( 'type' => 'string' ),
+							'author'             => array( 'type' => 'string' ),
+							'subreddit'          => array( 'type' => 'string' ),
+							'timestamp'          => array( 'type' => 'string' ),
+							'score'              => array( 'type' => 'integer' ),
+							'comment_count'      => array( 'type' => 'integer' ),
+							'match_type'         => array(
+								'type' => 'string',
+								'enum' => array( 'direct_link', 'self_text' ),
+							),
+							'ownership'          => array(
+								'type' => 'string',
+								'enum' => array( 'owned', 'organic' ),
+							),
+						),
+					),
+				),
+				'truncated'  => array( 'type' => 'boolean' ),
+				'limits'     => array(
+					'type'       => 'object',
+					'required'   => array( 'rows', 'pages_per_query', 'query_variants' ),
+					'properties' => array(
+						'rows'            => array( 'type' => 'integer' ),
+						'pages_per_query' => array( 'type' => 'integer' ),
+						'query_variants'  => array( 'type' => 'integer' ),
+					),
+				),
+				'coverage'   => array( 'type' => 'string' ),
+			),
+		);
+	}
+
 	/**
 	 * Execute the report by composing the existing Reddit fetch ability.
 	 *
@@ -103,10 +177,16 @@ class RedditDomainMentionsAbility extends AbstractSocialAbility {
 			return $domain;
 		}
 
-		$access_token = trim( (string) ( $input['access_token'] ?? '' ) );
-		if ( '' === $access_token ) {
-			return new \WP_Error( 'missing_param', 'A Reddit access token is required', array( 'status' => 400 ) );
+		$provider = $this->resolveProvider( 'reddit', 'Reddit' );
+		if ( is_wp_error( $provider ) ) {
+			return $provider;
 		}
+
+		$access_token = $provider->get_valid_access_token();
+		if ( ! is_string( $access_token ) || '' === trim( $access_token ) ) {
+			return new \WP_Error( 'missing_auth', 'Reddit access token expired and refresh failed', array( 'status' => 401 ) );
+		}
+		$access_token = trim( $access_token );
 
 		$owners = self::normalizeOwners( $input['owners'] ?? array() );
 		if ( is_wp_error( $owners ) ) {

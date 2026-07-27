@@ -110,11 +110,62 @@ class FetchRedditAbility extends AbstractSocialAbility {
 					),
 					'output_schema'       => array(
 						'type'       => 'object',
+						'required'   => array( 'success', 'pagination', 'logs' ),
 						'properties' => array(
-							'success' => array( 'type' => 'boolean' ),
-							'data'    => array( 'type' => 'object' ),
-							'error'   => array( 'type' => 'string' ),
-							'logs'    => array( 'type' => 'array' ),
+							'success'    => array( 'type' => 'boolean' ),
+							'data'       => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'object' ),
+							),
+							'items'      => array(
+								'type'  => 'array',
+								'items' => array(
+									'type'       => 'object',
+									'required'   => array( 'data', 'source_url', 'item_id' ),
+									'properties' => array(
+										'data'       => array(
+											'type'       => 'object',
+											'required'   => array( 'title', 'content', 'metadata' ),
+											'properties' => array(
+												'title'    => array( 'type' => 'string' ),
+												'content'  => array( 'type' => 'string' ),
+												'metadata' => array(
+													'type' => 'object',
+													'required' => array( 'source_type', 'item_identifier_to_log', 'original_id', 'original_title', 'original_date_gmt', 'subreddit', 'upvotes', 'comment_count', 'author', 'is_self_post', 'target_url' ),
+													'properties' => array(
+														'source_type'            => array( 'type' => 'string' ),
+														'item_identifier_to_log' => array( 'type' => 'string' ),
+														'original_id'            => array( 'type' => 'string' ),
+														'original_title'         => array( 'type' => 'string' ),
+														'original_date_gmt'      => array( 'type' => 'string' ),
+														'subreddit'              => array( 'type' => 'string' ),
+														'upvotes'                => array( 'type' => 'integer' ),
+														'comment_count'          => array( 'type' => 'integer' ),
+														'author'                 => array( 'type' => 'string' ),
+														'is_self_post'           => array( 'type' => 'boolean' ),
+														'target_url'             => array( 'type' => 'string' ),
+													),
+												),
+											),
+										),
+										'source_url' => array( 'type' => 'string' ),
+										'item_id'    => array( 'type' => 'string' ),
+									),
+								),
+							),
+							'pagination' => array(
+								'type'       => 'object',
+								'required'   => array( 'pages_fetched', 'truncated' ),
+								'properties' => array(
+									'pages_fetched' => array( 'type' => 'integer' ),
+									'truncated'     => array( 'type' => 'boolean' ),
+								),
+							),
+							'error'      => array( 'type' => 'string' ),
+							'logs'       => array(
+								'type'  => 'array',
+								'items' => array( 'type' => 'object' ),
+							),
 						),
 					),
 					'execute_callback'    => array( $this, 'execute' ),
@@ -378,6 +429,7 @@ class FetchRedditAbility extends AbstractSocialAbility {
 						)
 					);
 				} else {
+					$truncated = true;
 					break;
 				}
 			}

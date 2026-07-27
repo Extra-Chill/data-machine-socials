@@ -17,6 +17,18 @@ use WP_UnitTestCase;
 
 class FetchRedditAbilityTest extends WP_UnitTestCase {
 
+	public function test_registered_output_schema_describes_items_pagination_and_target_url(): void {
+		new FetchRedditAbility();
+		$ability = wp_get_ability( 'datamachine/fetch-reddit' );
+
+		$this->assertNotNull( $ability );
+		$schema = $ability->get_output_schema();
+		$this->assertContains( 'pagination', $schema['required'] );
+		$this->assertArrayHasKey( 'items', $schema['properties'] );
+		$this->assertArrayHasKey( 'pagination', $schema['properties'] );
+		$this->assertContains( 'target_url', $schema['properties']['items']['items']['properties']['data']['properties']['metadata']['required'] );
+	}
+
 	public function tear_down(): void {
 		remove_all_filters( 'pre_http_request' );
 		parent::tear_down();
@@ -224,6 +236,59 @@ class FetchRedditAbilityTest extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 'Reddit API request failed: Connection timed out', $result->get_error_message() );
 		$this->assertSame( 'http_request_failed', $result->get_error_data()['upstream_code'] );
+	}
+
+	public function test_invalid_json_after_a_successful_page_marks_results_truncated(): void {
+		$request_count = 0;
+		add_filter(
+			'pre_http_request',
+			static function () use ( &$request_count ): array {
+				++$request_count;
+				if ( 1 === $request_count ) {
+					return array(
+						'response' => array( 'code' => 200 ),
+						'body'     => wp_json_encode(
+							array(
+								'data' => array(
+									'after'    => 'page-2',
+									'children' => array(
+										array(
+											'kind' => 't3',
+											'data' => array(
+												'id'           => 'first',
+												'title'        => 'First post',
+												'selftext'     => '',
+												'created_utc'  => time(),
+												'score'        => 1,
+												'num_comments' => 0,
+												'permalink'    => '/r/WordPress/comments/first/',
+												'subreddit'    => 'WordPress',
+												'author'       => 'reddit_user',
+												'is_self'      => true,
+											),
+										),
+									),
+								),
+							)
+						),
+					);
+				}
+
+				return array(
+					'response' => array( 'code' => 200 ),
+					'body'     => '{invalid-json',
+				);
+			},
+			10,
+			3
+		);
+
+		$result = ( new FetchRedditAbility() )->execute( $this->fetchInput() );
+
+		$this->assertTrue( $result['success'] );
+		$this->assertSame( array( 'first' ), array_column( $result['items'], 'item_id' ) );
+		$this->assertSame( 2, $result['pagination']['pages_fetched'] );
+		$this->assertTrue( $result['pagination']['truncated'] );
 	}
 
 	/**

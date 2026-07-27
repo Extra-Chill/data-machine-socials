@@ -651,7 +651,7 @@ class RedditCommand {
 	 * : Domain or root URL to report.
 	 *
 	 * [--owner=<username>]
-	 * : Known owner username. Repeat the option or use comma-separated values.
+	 * : Known owner usernames as a comma-separated list.
 	 *
 	 * [--timeframe=<timeframe>]
 	 * : Fetch timeframe (all_time, 24_hours, 72_hours, 7_days, 30_days, 90_days, 6_months, 1_year).
@@ -702,7 +702,6 @@ class RedditCommand {
 		$result = $ability->execute(
 			array(
 				'domain'          => $domain,
-				'access_token'    => $this->get_access_token(),
 				'owners'          => $owners,
 				'timeframe_limit' => $assoc_args['timeframe'] ?? 'all_time',
 				'limit'           => $limit,

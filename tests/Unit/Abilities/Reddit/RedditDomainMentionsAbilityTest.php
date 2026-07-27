@@ -17,6 +17,22 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	public function test_registered_contract_keeps_oauth_server_side_and_describes_report_rows(): void {
+		new RedditDomainMentionsAbility();
+		$ability = wp_get_ability( 'datamachine/reddit-domain-mentions' );
+
+		$this->assertNotNull( $ability );
+		$input_schema = $ability->get_input_schema();
+		$this->assertSame( array( 'domain' ), $input_schema['required'] );
+		$this->assertArrayNotHasKey( 'access_token', $input_schema['properties'] );
+
+		$output_schema = $ability->get_output_schema();
+		$this->assertSame( array( 'success', 'report' ), $output_schema['required'] );
+		$row_schema = $output_schema['properties']['report']['properties']['rows']['items'];
+		$this->assertContains( 'matched_target_url', $row_schema['required'] );
+		$this->assertContains( 'ownership', $row_schema['required'] );
+	}
+
 	public function test_reports_direct_and_self_text_mentions_with_dedupe_owners_and_subdomains(): void {
 		$this->mockSearches(
 			array(
@@ -54,12 +70,11 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 			)
 		);
 
-		$result = ( new RedditDomainMentionsAbility() )->execute(
+		$result = $this->ability()->execute(
 			array(
-				'domain'       => 'https://Example.org/',
-				'access_token' => 'reddit-token',
-				'owners'       => array( 'u/own_user' ),
-				'limit'        => 10,
+				'domain' => 'https://Example.org/',
+				'owners' => array( 'u/own_user' ),
+				'limit'  => 10,
 			)
 		);
 
@@ -85,7 +100,7 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 			)
 		);
 
-		$result = ( new RedditDomainMentionsAbility() )->execute( $this->input() );
+		$result = $this->ability()->execute( $this->input() );
 
 		$this->assertSame( 1, $result['report']['totals']['total'] );
 		$this->assertSame( 'guides.example.org', $result['report']['rows'][0]['matched_host'] );
@@ -100,7 +115,7 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 			)
 		);
 
-		$result = ( new RedditDomainMentionsAbility() )->execute( $this->input() );
+		$result = $this->ability()->execute( $this->input() );
 
 		$this->assertTrue( $result['success'] );
 		$this->assertSame( array( 'total' => 0, 'owned' => 0, 'organic' => 0 ), $result['report']['totals'] );
@@ -112,10 +127,9 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 	 * @dataProvider malformedDomainProvider
 	 */
 	public function test_rejects_malformed_domains( string $domain ): void {
-		$result = ( new RedditDomainMentionsAbility() )->execute(
+		$result = $this->ability()->execute(
 			array(
-				'domain'       => $domain,
-				'access_token' => 'reddit-token',
+				'domain' => $domain,
 			)
 		);
 
@@ -151,7 +165,7 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 			)
 		);
 
-		$result = ( new RedditDomainMentionsAbility() )->execute( $this->input( array( 'limit' => 1 ) ) );
+		$result = $this->ability()->execute( $this->input( array( 'limit' => 1 ) ) );
 
 		$this->assertSame( 1, $result['report']['totals']['total'] );
 		$this->assertTrue( $result['report']['truncated'] );
@@ -193,12 +207,32 @@ class RedditDomainMentionsAbilityTest extends WP_UnitTestCase {
 	private function input( array $overrides = array() ): array {
 		return array_merge(
 			array(
-				'domain'       => 'example.org',
-				'access_token' => 'reddit-token',
-				'limit'        => 10,
+				'domain' => 'example.org',
+				'limit'  => 10,
 			),
 			$overrides
 		);
+	}
+
+	private function ability(): RedditDomainMentionsAbility {
+		$provider = new class() {
+			public function get_valid_access_token(): string {
+				return 'reddit-token';
+			}
+		};
+
+		return new class( $provider ) extends RedditDomainMentionsAbility {
+			private object $provider;
+
+			public function __construct( object $provider ) {
+				$this->provider = $provider;
+				parent::__construct();
+			}
+
+			protected function resolveProvider( string $platform, string $label, bool $require_authenticated = true ) {
+				return $this->provider;
+			}
+		};
 	}
 
 	private function redditPost( string $id, array $overrides = array() ): array {
