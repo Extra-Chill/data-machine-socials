@@ -768,9 +768,10 @@ class RedditCommand {
 	 */
 	public function comment_mentions( $args, $assoc_args ) {
 		$args;
-		$format  = $this->format_arg( $assoc_args, array( 'table', 'json', 'csv' ) );
-		$limit   = $this->bounded_integer_arg( $assoc_args, 'limit', 100, 1, 500 );
-		$ability = wp_get_ability( 'datamachine/reddit-comment-mentions-report' );
+		$format    = $this->format_arg( $assoc_args, array( 'table', 'json', 'csv' ) );
+		$limit     = $this->bounded_integer_arg( $assoc_args, 'limit', 100, 1, 500 );
+		$min_score = $this->signed_integer_arg( $assoc_args, 'min-score', PHP_INT_MIN );
+		$ability   = wp_get_ability( 'datamachine/reddit-comment-mentions-report' );
 		if ( ! $ability ) {
 			WP_CLI::error( 'datamachine/reddit-comment-mentions-report ability not registered.' );
 		}
@@ -782,7 +783,7 @@ class RedditCommand {
 				'date_to'      => (string) ( $assoc_args['to'] ?? '' ),
 				'ownership'    => (string) ( $assoc_args['ownership'] ?? 'all' ),
 				'known_owners' => $this->csv_values( (string) ( $assoc_args['owners'] ?? '' ) ),
-				'min_score'    => (int) ( $assoc_args['min-score'] ?? PHP_INT_MIN ),
+				'min_score'    => $min_score,
 				'limit'        => $limit,
 			)
 		);
@@ -867,6 +868,18 @@ class RedditCommand {
 		$value = $assoc_args[ $name ];
 		if ( ! is_string( $value ) || ! preg_match( '/^[0-9]+$/', $value ) || (int) $value < $minimum || (int) $value > $maximum ) {
 			WP_CLI::error( sprintf( '--%s must be a whole number between %d and %d.', $name, $minimum, $maximum ) );
+		}
+		return (int) $value;
+	}
+
+	/** Validate a signed whole-number option. */
+	private function signed_integer_arg( array $assoc_args, string $name, int $default_value ): int {
+		if ( ! array_key_exists( $name, $assoc_args ) ) {
+			return $default_value;
+		}
+		$value = $assoc_args[ $name ];
+		if ( ! is_string( $value ) || ! preg_match( '/^-?[0-9]+$/', $value ) ) {
+			WP_CLI::error( sprintf( '--%s must be a whole number.', $name ) );
 		}
 		return (int) $value;
 	}

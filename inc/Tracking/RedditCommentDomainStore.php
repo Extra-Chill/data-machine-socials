@@ -16,7 +16,7 @@ class RedditCommentDomainStore {
 	public const CRON_HOOK    = 'datamachine_socials_reddit_comment_retention';
 	private const LOCK_OPTION = 'datamachine_socials_reddit_comment_monitor_lock';
 	private const DB_VERSION  = '1';
-	private const MAX_SCOPES  = 100;
+	private const MAX_SCOPES  = 25;
 
 	/** Register the site-local table and daily retention task. */
 	public static function register(): void {

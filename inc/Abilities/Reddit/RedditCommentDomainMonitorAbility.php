@@ -267,6 +267,7 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 		$pending          = is_array( $scope['pending'] ?? null ) ? $scope['pending'] : array();
 		if ( ! empty( $pending ) && ( $pending['config_signature'] ?? '' ) !== $config_signature ) {
 			$pending = array();
+			unset( $scope['pending'] );
 		}
 
 		$checkpoint          = (string) ( $scope['checkpoint'] ?? '' );
@@ -392,11 +393,11 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 				? $oldest_seen
 				: min( (int) $scope['observed_from'], $oldest_seen );
 			$scope['observed_to']            = max( (int) ( $scope['observed_to'] ?? 0 ), $target_head_created );
-			$scope['pending']                = array();
-			$scope['last_status']            = 'complete';
-			$scope['last_error']             = '';
+			unset( $scope['pending'] );
+			$scope['last_status'] = 'complete';
+			$scope['last_error']  = '';
 		} elseif ( '' !== $checkpoint && $source_exhausted && ! $reached_checkpoint ) {
-			$scope['pending']     = array();
+			unset( $scope['pending'] );
 			$scope['last_status'] = 'checkpoint_unavailable';
 			$scope['last_error']  = 'The prior checkpoint was not present in Reddit\'s bounded recent-comment listing; the checkpoint was not advanced.';
 		}
@@ -542,25 +543,27 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 
 	private function pollOutputSchema(): array {
 		return array(
-			'type'       => 'object',
-			'required'   => array( 'success', 'action', 'data', 'coverage' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'success', 'action', 'data', 'coverage' ),
+			'additionalProperties' => false,
+			'properties'           => array(
 				'success'  => array( 'type' => 'boolean' ),
 				'action'   => array(
 					'type' => 'string',
 					'enum' => array( 'poll' ),
 				),
 				'data'     => array(
-					'type'       => 'object',
-					'required'   => array( 'scopes', 'errors' ),
-					'properties' => array(
+					'type'                 => 'object',
+					'required'             => array( 'scopes', 'errors' ),
+					'additionalProperties' => false,
+					'properties'           => array(
 						'scopes' => array(
 							'type'                 => 'object',
-							'additionalProperties' => array( 'type' => 'object' ),
+							'additionalProperties' => $this->pollScopeSchema(),
 						),
 						'errors' => array(
 							'type'                 => 'object',
-							'additionalProperties' => array( 'type' => 'object' ),
+							'additionalProperties' => $this->errorSchema(),
 						),
 					),
 				),
@@ -571,18 +574,20 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 
 	private function reportOutputSchema(): array {
 		return array(
-			'type'       => 'object',
-			'required'   => array( 'success', 'action', 'data', 'coverage' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'success', 'action', 'data', 'coverage' ),
+			'additionalProperties' => false,
+			'properties'           => array(
 				'success'  => array( 'type' => 'boolean' ),
 				'action'   => array(
 					'type' => 'string',
 					'enum' => array( 'report' ),
 				),
 				'data'     => array(
-					'type'       => 'object',
-					'required'   => array( 'matches', 'count' ),
-					'properties' => array(
+					'type'                 => 'object',
+					'required'             => array( 'matches', 'count' ),
+					'additionalProperties' => false,
+					'properties'           => array(
 						'matches' => array(
 							'type'  => 'array',
 							'items' => $this->recordSchema(),
@@ -601,14 +606,16 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 
 	private function cleanupOutputSchema(): array {
 		return array(
-			'type'       => 'object',
-			'required'   => array( 'success', 'data' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'success', 'data' ),
+			'additionalProperties' => false,
+			'properties'           => array(
 				'success' => array( 'type' => 'boolean' ),
 				'data'    => array(
-					'type'       => 'object',
-					'required'   => array( 'deleted', 'retained', 'retention_days', 'max_records' ),
-					'properties' => array(
+					'type'                 => 'object',
+					'required'             => array( 'deleted', 'retained', 'retention_days', 'max_records' ),
+					'additionalProperties' => false,
+					'properties'           => array(
 						'deleted'        => array(
 							'type'    => 'integer',
 							'minimum' => 0,
@@ -636,9 +643,10 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 
 	private function coverageSchema(): array {
 		return array(
-			'type'       => 'object',
-			'required'   => array( 'kind', 'all_reddit_search', 'historical_complete', 'configured_scopes', 'scopes', 'truncated', 'limitation' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'kind', 'all_reddit_search', 'historical_complete', 'configured_scopes', 'scopes', 'truncated', 'limitation' ),
+			'additionalProperties' => false,
+			'properties'           => array(
 				'kind'                => array( 'type' => 'string' ),
 				'all_reddit_search'   => array( 'type' => 'boolean' ),
 				'historical_complete' => array( 'type' => 'boolean' ),
@@ -648,7 +656,7 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 				),
 				'scopes'              => array(
 					'type'                 => 'object',
-					'additionalProperties' => array( 'type' => 'object' ),
+					'additionalProperties' => $this->coverageScopeSchema(),
 				),
 				'truncated'           => array( 'type' => 'boolean' ),
 				'limitation'          => array( 'type' => 'string' ),
@@ -667,9 +675,78 @@ class RedditCommentDomainMonitorAbility extends AbstractSocialAbility {
 		}
 		$properties['known_owner'] = array( 'type' => 'boolean' );
 		return array(
-			'type'       => 'object',
-			'required'   => array_keys( $properties ),
-			'properties' => $properties,
+			'type'                 => 'object',
+			'required'             => array_keys( $properties ),
+			'additionalProperties' => false,
+			'properties'           => $properties,
+		);
+	}
+
+	private function pollScopeSchema(): array {
+		$properties = array(
+			'checked'            => array(
+				'type'    => 'integer',
+				'minimum' => 0,
+			),
+			'inserted'           => array(
+				'type'    => 'integer',
+				'minimum' => 0,
+			),
+			'updated'            => array(
+				'type'    => 'integer',
+				'minimum' => 0,
+			),
+			'pages'              => array(
+				'type'    => 'integer',
+				'minimum' => 0,
+				'maximum' => 10,
+			),
+			'checkpoint_reached' => array( 'type' => 'boolean' ),
+			'source_exhausted'   => array( 'type' => 'boolean' ),
+			'truncated'          => array( 'type' => 'boolean' ),
+			'checkpoint'         => array( 'type' => 'string' ),
+			'continuation'       => array( 'type' => 'string' ),
+		);
+		return array(
+			'type'                 => 'object',
+			'required'             => array_keys( $properties ),
+			'additionalProperties' => false,
+			'properties'           => $properties,
+		);
+	}
+
+	private function errorSchema(): array {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'code', 'message', 'data' ),
+			'additionalProperties' => false,
+			'properties'           => array(
+				'code'    => array( 'type' => 'string' ),
+				'message' => array( 'type' => 'string' ),
+				'data'    => array( 'type' => array( 'object', 'array', 'null' ) ),
+			),
+		);
+	}
+
+	private function coverageScopeSchema(): array {
+		return array(
+			'type'                 => 'object',
+			'additionalProperties' => false,
+			'properties'           => array(
+				'checkpoint'             => array( 'type' => 'string' ),
+				'checkpoint_created_utc' => array( 'type' => 'integer' ),
+				'observed_from'          => array( 'type' => 'integer' ),
+				'observed_to'            => array( 'type' => 'integer' ),
+				'pending'                => array( 'type' => 'object' ),
+				'last_poll_at'           => array( 'type' => 'integer' ),
+				'last_status'            => array( 'type' => 'string' ),
+				'last_error'             => array( 'type' => 'string' ),
+				'configured_domains'     => array(
+					'type'  => 'array',
+					'items' => array( 'type' => 'string' ),
+				),
+				'include_subdomains'     => array( 'type' => 'boolean' ),
+			),
 		);
 	}
 
