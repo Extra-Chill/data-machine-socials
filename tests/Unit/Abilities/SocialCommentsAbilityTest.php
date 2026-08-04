@@ -84,6 +84,7 @@ class SocialCommentsAbilityTest extends WP_UnitTestCase {
 
 		$this->assertTrue( $result['success'] );
 		$this->assertSame( 'old-post-comment', $result['data']['comments'][0]['id'] );
+		$this->assertSame( 'instagram', $result['data']['comments'][0]['platform'] );
 		$this->assertSame( 'old-post', $result['data']['comments'][0]['media_id'] );
 		$this->assertSame( array( 'extrachill' ), $result['data']['comments'][0]['mentions'] );
 		$this->assertSame( 2, $result['data']['count'] );

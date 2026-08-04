@@ -177,7 +177,7 @@ class SocialCommentsAbility extends AbstractSocialAbility {
 
 		return array(
 			'id'              => (string) ( $comment['id'] ?? '' ),
-			'provider'        => $provider,
+			'platform'        => $provider,
 			'media_id'        => $media_id,
 			'author_username' => (string) ( $comment['username'] ?? $comment['from']['name'] ?? '' ),
 			'text'            => $text,
