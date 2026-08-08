@@ -50,6 +50,7 @@ final class PlatformProvider {
 			'available'             => false,
 			'state'                 => 'pending',
 			'reason'                => null,
+			'prerequisites'         => $prerequisites,
 			'missing_prerequisites' => array(),
 			'capabilities'          => $capabilities,
 			'components'            => array(
@@ -158,8 +159,8 @@ final class PlatformProvider {
 		}
 
 		try {
-			$callback();
-			$this->availability['components'][ $component ] = 'registered';
+			$result = $callback();
+			$this->availability['components'][ $component ] = false === $result ? 'unavailable' : 'registered';
 		} catch ( \Throwable $throwable ) {
 			$this->fail( $component, $throwable );
 		}

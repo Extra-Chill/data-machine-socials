@@ -167,16 +167,20 @@ final class PlatformBootstrap {
 			},
 			$tool_names
 		);
-		$command = 'datamachine-socials ' . $id;
+		$command      = 'datamachine-socials ' . $id;
 
 		return new PlatformProvider(
 			$id,
 			array_merge( array( 'DataMachine\\Core\\Steps\\Publish\\Handlers\\PublishHandler' ), $ability_classes, array( $handler_class ) ),
 			array(
-				'abilities' => $ability_slugs,
-				'handler'   => 'reddit' === $id ? 'reddit' : $id . '_publish',
-				'tools'     => $tool_names,
-				'cli'       => $command,
+				'abilities'    => $ability_slugs,
+				'handler'      => 'reddit' === $id ? 'reddit' : $id . '_publish',
+				'tools'        => $tool_names,
+				'cli'          => $command,
+				'requirements' => array(
+					'tools' => 'DataMachine\\Engine\\AI\\Tools\\BaseTool',
+					'cli'   => 'WP_CLI',
+				),
 			),
 			static function () use ( $ability_classes, $handler_class ): void {
 				foreach ( $ability_classes as $ability_class ) {
@@ -184,24 +188,28 @@ final class PlatformBootstrap {
 				}
 				new $handler_class();
 			},
-			$tool_classes ? static function () use ( $tool_classes ): void {
+			$tool_classes ? static function () use ( $tool_classes ): bool {
 				if ( ! class_exists( 'DataMachine\\Engine\\AI\\Tools\\BaseTool' ) ) {
-					return;
+					return false;
 				}
 
 				foreach ( $tool_classes as $tool_class ) {
 					new $tool_class();
 				}
+
+				return true;
 			} : null,
-			static function () use ( $command ): void {
+			static function () use ( $command ): bool {
 				if ( ! defined( 'WP_CLI' ) ) {
-					return;
+					return false;
 				}
 
 				$command_map   = CommandRegistry::map();
 				$command_class = $command_map[ $command ];
 				require_once CommandRegistry::file_for_class( $command_class );
 				\WP_CLI::add_command( $command, $command_class );
+
+				return true;
 			}
 		);
 	}

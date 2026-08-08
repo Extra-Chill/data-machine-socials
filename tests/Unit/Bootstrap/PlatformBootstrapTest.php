@@ -109,6 +109,20 @@ final class PlatformBootstrapTest extends WP_UnitTestCase {
 		$this->assertTrue( $bootstrap->availability()['example']['available'] );
 	}
 
+	public function test_absent_optional_prerequisite_is_discoverable(): void {
+		$order     = array();
+		$provider  = $this->provider( 'optional-absent', $order, array(), null, static function (): bool {
+			return false;
+		} );
+		$bootstrap = new PlatformBootstrap( array( $provider ) );
+
+		$bootstrap->register();
+		$bootstrap->register_tools();
+
+		$this->assertTrue( $provider->availability()['available'] );
+		$this->assertSame( 'unavailable', $provider->availability()['components']['tools'] );
+	}
+
 	/**
 	 * @param array<int,string>                 $order         Registration log.
 	 * @param array<int,class-string>           $prerequisites Required classes.
