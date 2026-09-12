@@ -375,8 +375,4 @@ class SocialMessagesAbility extends AbstractSocialAbility {
 			'error'   => $error,
 		);
 	}
-
-	private function errorMessage( $result, string $fallback ): string {
-		return is_wp_error( $result ) ? $result->get_error_message() : ( $result['error'] ?? $fallback );
-	}
 }

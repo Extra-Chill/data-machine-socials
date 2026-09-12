@@ -4,7 +4,7 @@
  *
  * Abilities API primitive for sending Instagram direct messages.
  * Uses the Facebook Graph Messaging API with the Page access token stored
- * on the account (introduced by #256), since the user token cannot call
+ * on the account, since the user token cannot call
  * /{page_id}/messages.
  *
  * @package    DataMachineSocials
@@ -29,12 +29,6 @@ class InstagramMessageSendAbility extends AbstractSocialAbility {
 	const GRAPH_API_URL = 'https://graph.facebook.com/' . FacebookAuth::GRAPH_API_VERSION;
 
 	const MAX_MESSAGE_LENGTH = 1000;
-
-	/**
-	 * WP_Error code returned when the Page access token required by the
-	 * Messaging API is not stored on the account (requires #256 + re-auth).
-	 */
-	const PAGE_TOKEN_ERROR_CODE = 'instagram_page_token_required';
 
 	/**
 	 * Meta error code / subcode pair returned when the 24-hour messaging
@@ -104,7 +98,7 @@ class InstagramMessageSendAbility extends AbstractSocialAbility {
 			return new \WP_Error( 'missing_auth', 'Instagram auth provider not available', array( 'status' => 401 ) );
 		}
 
-		$page = $this->resolvePageContext( $auth );
+		$page = $auth->get_page_context();
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -147,36 +141,6 @@ class InstagramMessageSendAbility extends AbstractSocialAbility {
 		return $provider;
 	}
 
-	/**
-	 * Resolve the Page ID and Page access token required by the Messaging API.
-	 *
-	 * Resolved defensively from the stored account array because the
-	 * page_id / page_access_token keys are introduced by #256. When either
-	 * key is absent, callers get a clear reconnect instruction instead of a
-	 * raw Graph authorization error.
-	 *
-	 * @param InstagramAuth $auth Auth provider.
-	 * @return array{id: string, access_token: string}|\WP_Error
-	 */
-	private function resolvePageContext( InstagramAuth $auth ): array|\WP_Error {
-		$account = $auth->get_account_details();
-
-		$page_id    = is_array( $account ) ? ( $account['page_id'] ?? null ) : null;
-		$page_token = is_array( $account ) ? ( $account['page_access_token'] ?? null ) : null;
-
-		if ( empty( $page_id ) || empty( $page_token ) ) {
-			return new \WP_Error(
-				self::PAGE_TOKEN_ERROR_CODE,
-				__( 'Instagram messaging requires a Page access token. Reconnect Instagram after the #256 fix is deployed.', 'data-machine-socials' ),
-				array( 'status' => 401 )
-			);
-		}
-
-		return array(
-			'id'           => (string) $page_id,
-			'access_token' => (string) $page_token,
-		);
-	}
 
 	private function sendMessage( string $page_id, string $page_token, string $recipient_id, string $message, string $messaging_type ): array|\WP_Error {
 		$url = self::GRAPH_API_URL . '/' . rawurlencode( $page_id ) . '/messages';

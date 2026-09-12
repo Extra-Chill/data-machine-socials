@@ -60,12 +60,6 @@ class InstagramReadAbility extends AbstractSocialAbility {
 	 */
 	const MESSAGE_FIELDS = 'messages{id,created_time,from,to,message,attachments,is_unsupported}';
 
-	/**
-	 * WP_Error code returned when the Page access token required by the
-	 * Messaging API is not stored on the account (requires #256 + re-auth).
-	 */
-	const PAGE_TOKEN_ERROR_CODE = 'instagram_page_token_required';
-
 	public function __construct() {
 		$this->registerAbility( $this->registerCallback(), true );
 	}
@@ -460,14 +454,14 @@ class InstagramReadAbility extends AbstractSocialAbility {
 	 * List direct-message conversations on the connected Instagram Business account.
 	 *
 	 * Uses the Facebook Graph Messaging API, which requires the Page access
-	 * token and page_id stored on the account (introduced by #256).
+	 * token and page_id stored on the account.
 	 *
 	 * @param InstagramAuth $auth  Auth provider.
 	 * @param array         $input Input parameters.
 	 * @return array Result with normalized conversations.
 	 */
 	private function getConversations( InstagramAuth $auth, array $input ): array|\WP_Error {
-		$page = $this->resolvePageContext( $auth );
+		$page = $auth->get_page_context();
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -533,7 +527,7 @@ class InstagramReadAbility extends AbstractSocialAbility {
 	 * @return array Result with normalized messages.
 	 */
 	private function getMessages( InstagramAuth $auth, string $conversation_id ): array|\WP_Error {
-		$page = $this->resolvePageContext( $auth );
+		$page = $auth->get_page_context();
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -574,36 +568,6 @@ class InstagramReadAbility extends AbstractSocialAbility {
 		);
 	}
 
-	/**
-	 * Resolve the Page ID and Page access token required by the Messaging API.
-	 *
-	 * Resolved defensively from the stored account array because the
-	 * page_id / page_access_token keys are introduced by #256. When either
-	 * key is absent, callers get a clear reconnect instruction instead of a
-	 * raw Graph authorization error.
-	 *
-	 * @param InstagramAuth $auth Auth provider.
-	 * @return array{id: string, access_token: string}|\WP_Error
-	 */
-	private function resolvePageContext( InstagramAuth $auth ): array|\WP_Error {
-		$account = $auth->get_account_details();
-
-		$page_id    = is_array( $account ) ? ( $account['page_id'] ?? null ) : null;
-		$page_token = is_array( $account ) ? ( $account['page_access_token'] ?? null ) : null;
-
-		if ( empty( $page_id ) || empty( $page_token ) ) {
-			return new \WP_Error(
-				self::PAGE_TOKEN_ERROR_CODE,
-				__( 'Instagram messaging requires a Page access token. Reconnect Instagram after the #256 fix is deployed.', 'data-machine-socials' ),
-				array( 'status' => 401 )
-			);
-		}
-
-		return array(
-			'id'           => (string) $page_id,
-			'access_token' => (string) $page_token,
-		);
-	}
 
 	/**
 	 * Normalize an Instagram conversation into the generic conversation shape.
