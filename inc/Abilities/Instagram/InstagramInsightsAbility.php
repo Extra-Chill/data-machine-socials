@@ -24,7 +24,11 @@ class InstagramInsightsAbility extends AbstractSocialAbility {
 	const REEL_METRICS  = array( 'views', 'reach', 'saved', 'shares', 'total_interactions', 'ig_reels_avg_watch_time', 'ig_reels_video_view_total_time' );
 
 	public function __construct() {
-		$this->registerAbility( function () {
+		$this->registerAbility( $this->registerCallback(), true );
+	}
+
+	private function registerCallback(): callable {
+		return function () {
 			wp_register_ability(
 				'datamachine/instagram-insights',
 				array(
@@ -44,7 +48,7 @@ class InstagramInsightsAbility extends AbstractSocialAbility {
 					'meta'                => array( 'show_in_rest' => true ),
 				)
 			);
-		}, true );
+		};
 	}
 
 	public function checkPermission(): bool {
@@ -56,8 +60,8 @@ class InstagramInsightsAbility extends AbstractSocialAbility {
 			return new \WP_Error( 'missing_param', 'media_id is required', array( 'status' => 400 ) );
 		}
 
-		$provider = ( new \DataMachine\Abilities\AuthAbilities() )->getProvider( 'instagram' );
-		if ( ! $provider instanceof InstagramAuth ) {
+		$provider = $this->getAuthProvider();
+		if ( ! $provider ) {
 			return new \WP_Error( 'missing_auth', 'Instagram auth provider not available', array( 'status' => 401 ) );
 		}
 		$token = $provider->get_valid_access_token();
@@ -80,6 +84,11 @@ class InstagramInsightsAbility extends AbstractSocialAbility {
 		}
 
 		return array( 'success' => true, 'data' => array( 'media_id' => (string) $input['media_id'], 'media_type' => $media_type, 'metrics' => $insights['data'] ?? array() ) );
+	}
+
+	private function getAuthProvider(): ?InstagramAuth {
+		$provider = ( new \DataMachine\Abilities\AuthAbilities() )->getProvider( 'instagram' );
+		return $provider instanceof InstagramAuth ? $provider : null;
 	}
 
 	private function graphGet( string $url, string $token ): array|\WP_Error {
