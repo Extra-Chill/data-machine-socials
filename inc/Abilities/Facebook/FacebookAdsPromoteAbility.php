@@ -46,34 +46,46 @@ class FacebookAdsPromoteAbility extends AbstractSocialAbility {
 					'input_schema'        => array(
 						'type'       => 'object',
 						'properties' => array(
-							'name'         => $string,
-							'budget'       => array(
+							'name'               => $string,
+							'budget'             => array(
 								'type'        => 'number',
 								'description' => 'Lifetime budget in the ad account currency (major units). Capped by the hard limit.',
 							),
-							'start_time'   => $string,
-							'end_time'     => $string,
-							'latitude'     => array( 'type' => 'number' ),
-							'longitude'    => array( 'type' => 'number' ),
-							'radius_miles' => array( 'type' => 'integer' ),
-							'age_min'      => array( 'type' => 'integer' ),
-							'age_max'      => array( 'type' => 'integer' ),
-							'interests'    => array(
+							'start_time'         => $string,
+							'end_time'           => $string,
+							'latitude'           => array( 'type' => 'number' ),
+							'longitude'          => array( 'type' => 'number' ),
+							'radius_miles'       => array( 'type' => 'integer' ),
+							'age_min'            => array( 'type' => 'integer' ),
+							'age_max'            => array( 'type' => 'integer' ),
+							'interests'          => array(
 								'type'  => 'array',
 								'items' => $string,
 							),
-							'link'         => array(
+							'link'               => array(
 								'type'        => 'string',
 								'description' => 'Destination URL (e.g. the event RSVP page).',
 							),
-							'post_id'      => array(
+							'post_id'            => array(
 								'type'        => 'string',
 								'description' => 'Existing Page post to promote. Omit to build a link ad from message + image.',
 							),
-							'message'      => $string,
-							'headline'     => $string,
-							'image_path'   => $string,
-							'image_url'    => $string,
+							'instagram_media_id' => array(
+								'type'        => 'string',
+								'description' => 'Existing Instagram post (numeric media ID) to boost. Defaults placements to Instagram only.',
+							),
+							'platforms'          => array(
+								'type'        => 'array',
+								'items'       => array(
+									'type' => 'string',
+									'enum' => FacebookAdsPolicy::PLATFORMS,
+								),
+								'description' => 'Placements: facebook and/or instagram. Default both (Instagram only when boosting an Instagram post).',
+							),
+							'message'            => $string,
+							'headline'           => $string,
+							'image_path'         => $string,
+							'image_url'          => $string,
 						),
 						'required'   => array( 'budget', 'end_time', 'latitude', 'longitude', 'radius_miles', 'link' ),
 					),
@@ -140,7 +152,10 @@ class FacebookAdsPromoteAbility extends AbstractSocialAbility {
 		}
 
 		$instagram_id = self::instagramUserId();
-		$ids          = array();
+		if ( '' === $instagram_id && ( in_array( 'instagram', $promotion['platforms'], true ) || '' !== $promotion['ig_media_id'] ) ) {
+			return new \WP_Error( 'instagram_not_connected', 'Instagram placements need a connected Instagram business account.' );
+		}
+		$ids = array();
 
 		$campaign = $graph->post(
 			$act . '/campaigns',
@@ -171,7 +186,7 @@ class FacebookAdsPromoteAbility extends AbstractSocialAbility {
 					'optimization_goal' => 'LINK_CLICKS',
 					'bid_strategy'      => 'LOWEST_COST_WITHOUT_CAP',
 					'destination_type'  => 'WEBSITE',
-					'targeting'         => FacebookAdsPolicy::targeting( $promotion, $interests, '' !== $instagram_id ),
+					'targeting'         => FacebookAdsPolicy::targeting( $promotion, $interests ),
 					'status'            => 'PAUSED',
 				)
 			),
@@ -281,12 +296,26 @@ class FacebookAdsPromoteAbility extends AbstractSocialAbility {
 	}
 
 	/**
-	 * Ad creative spec: an existing Page post, or a link ad.
+	 * Ad creative spec: an existing Instagram post, an existing Page post, or a link ad.
 	 *
 	 * @return array|\WP_Error
 	 */
 	private function creativeSpec( FacebookGraphClient $graph, array $promotion, string $page_id, string $instagram_id ) {
 		$ig = '' !== $instagram_id ? array( 'instagram_user_id' => $instagram_id ) : array();
+
+		if ( '' !== $promotion['ig_media_id'] ) {
+			// Boost the existing Instagram post itself, sending clicks to the destination.
+			return array(
+				'name'                      => $promotion['name'] . ' - creative',
+				'object_id'                 => $page_id,
+				'instagram_user_id'         => $instagram_id,
+				'source_instagram_media_id' => $promotion['ig_media_id'],
+				'call_to_action'            => array(
+					'type'  => 'LEARN_MORE',
+					'value' => array( 'link' => $promotion['link'] ),
+				),
+			);
+		}
 
 		if ( '' !== $promotion['post_id'] ) {
 			return array(

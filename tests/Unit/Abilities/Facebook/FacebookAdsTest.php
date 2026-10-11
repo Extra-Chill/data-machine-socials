@@ -82,7 +82,35 @@ class FacebookAdsTest extends WP_UnitTestCase {
 			'http link'        => array( array( 'link' => 'http://example.com' ), 'invalid_link' ),
 			'no creative'      => array( array( 'image_url' => '' ), 'invalid_creative' ),
 			'too many interests' => array( array( 'interests' => array_fill( 0, 11, 'music' ) ), 'too_many_interests' ),
+			'unknown platform' => array( array( 'platforms' => array( 'tiktok' ) ), 'invalid_platforms' ),
+			'two source posts' => array( array( 'post_id' => '1', 'instagram_media_id' => '2' ), 'invalid_creative' ),
+			'bad ig media id'  => array( array( 'instagram_media_id' => 'abc' ), 'invalid_creative' ),
 		);
+	}
+
+	public function test_placements_default_and_instagram_post_boost(): void {
+		$link = FacebookAdsPolicy::validate( $this->input(), $this->limits(), 'act_123', self::NOW );
+		$this->assertSame( FacebookAdsPolicy::PLATFORMS, $link['platforms'] );
+
+		$boost = FacebookAdsPolicy::validate(
+			$this->input(
+				array(
+					'instagram_media_id' => '17899513059669654',
+					'message'            => '',
+					'image_url'          => '',
+				)
+			),
+			$this->limits(),
+			'act_123',
+			self::NOW
+		);
+		$this->assertSame( array( 'instagram' ), $boost['platforms'], 'Boosting an Instagram post defaults to Instagram only' );
+		$this->assertSame( '17899513059669654', $boost['ig_media_id'] );
+		$this->assertSame( 'Existing Instagram post 17899513059669654', FacebookAdsPolicy::preview( $boost, array(), 'USD' )['creative'] );
+
+		$both = FacebookAdsPolicy::validate( $this->input( array( 'platforms' => 'Instagram, facebook' ) ), $this->limits(), 'act_123', self::NOW );
+		$this->assertSame( array( 'instagram', 'facebook' ), $both['platforms'] );
+		$this->assertSame( array( 'instagram', 'facebook' ), FacebookAdsPolicy::targeting( $both, array() )['publisher_platforms'] );
 	}
 
 	public function test_requires_a_configured_ad_account(): void {
@@ -98,8 +126,8 @@ class FacebookAdsTest extends WP_UnitTestCase {
 	}
 
 	public function test_targeting_is_local_and_locks_advantage_audience(): void {
-		$p = FacebookAdsPolicy::validate( $this->input(), $this->limits(), 'act_123', self::NOW );
-		$t = FacebookAdsPolicy::targeting( $p, array( array( 'id' => '1', 'name' => 'Live music' ) ), false );
+		$p = FacebookAdsPolicy::validate( $this->input( array( 'platforms' => array( 'facebook' ) ) ), $this->limits(), 'act_123', self::NOW );
+		$t = FacebookAdsPolicy::targeting( $p, array( array( 'id' => '1', 'name' => 'Live music' ) ) );
 
 		$this->assertSame( 15, $t['geo_locations']['custom_locations'][0]['radius'] );
 		$this->assertSame( 'mile', $t['geo_locations']['custom_locations'][0]['distance_unit'] );

@@ -679,6 +679,13 @@ class FacebookCommand {
 	 * [--post=<post_id>]
 	 * : Promote an existing Page post instead of building a link ad.
 	 *
+	 * [--ig-post=<media_id>]
+	 * : Boost an existing Instagram post (numeric media ID from
+	 *   `wp datamachine-socials instagram posts`). Defaults to Instagram placements only.
+	 *
+	 * [--platforms=<list>]
+	 * : Comma-separated placements: facebook, instagram (default both).
+	 *
 	 * [--message=<text>]
 	 * : Ad text (link ad).
 	 *
@@ -693,22 +700,24 @@ class FacebookCommand {
 	 */
 	public function promote( $args, $assoc_args ) {
 		$input = array(
-			'name'         => $assoc_args['name'] ?? '',
-			'budget'       => (float) $assoc_args['budget'],
-			'start_time'   => $assoc_args['start'] ?? '',
-			'end_time'     => $assoc_args['end'],
-			'latitude'     => (float) $assoc_args['lat'],
-			'longitude'    => (float) $assoc_args['lng'],
-			'radius_miles' => (int) $assoc_args['radius'],
-			'age_min'      => (int) ( $assoc_args['age-min'] ?? 21 ),
-			'age_max'      => (int) ( $assoc_args['age-max'] ?? 65 ),
-			'interests'    => isset( $assoc_args['interests'] ) ? array_map( 'trim', explode( ',', $assoc_args['interests'] ) ) : array(),
-			'link'         => $assoc_args['link'],
-			'post_id'      => $assoc_args['post'] ?? '',
-			'message'      => $assoc_args['message'] ?? '',
-			'headline'     => $assoc_args['headline'] ?? '',
-			'image_path'   => $assoc_args['image'] ?? '',
-			'image_url'    => $assoc_args['image-url'] ?? '',
+			'name'               => $assoc_args['name'] ?? '',
+			'budget'             => (float) $assoc_args['budget'],
+			'start_time'         => $assoc_args['start'] ?? '',
+			'end_time'           => $assoc_args['end'],
+			'latitude'           => (float) $assoc_args['lat'],
+			'longitude'          => (float) $assoc_args['lng'],
+			'radius_miles'       => (int) $assoc_args['radius'],
+			'age_min'            => (int) ( $assoc_args['age-min'] ?? 21 ),
+			'age_max'            => (int) ( $assoc_args['age-max'] ?? 65 ),
+			'interests'          => isset( $assoc_args['interests'] ) ? array_map( 'trim', explode( ',', $assoc_args['interests'] ) ) : array(),
+			'link'               => $assoc_args['link'],
+			'post_id'            => $assoc_args['post'] ?? '',
+			'instagram_media_id' => $assoc_args['ig-post'] ?? '',
+			'platforms'          => isset( $assoc_args['platforms'] ) ? explode( ',', $assoc_args['platforms'] ) : array(),
+			'message'            => $assoc_args['message'] ?? '',
+			'headline'           => $assoc_args['headline'] ?? '',
+			'image_path'         => $assoc_args['image'] ?? '',
+			'image_url'          => $assoc_args['image-url'] ?? '',
 		);
 
 		$result    = $this->run_ads_ability( 'datamachine/facebook-ads-promote', $input );

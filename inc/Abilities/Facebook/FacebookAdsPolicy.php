@@ -30,6 +30,9 @@ final class FacebookAdsPolicy {
 	/** Default hard cap on one promotion's duration, in days. */
 	public const DEFAULT_MAX_DURATION_DAYS = 14;
 
+	/** Placements a promotion may use. */
+	public const PLATFORMS = array( 'facebook', 'instagram' );
+
 	private const MAX_RADIUS_MILES = 50;
 	private const MIN_RADIUS_MILES = 1;
 	private const MAX_INTERESTS    = 10;
@@ -155,17 +158,30 @@ final class FacebookAdsPolicy {
 			return new \WP_Error( 'invalid_link', 'link must be an https URL (the destination people land on).' );
 		}
 
-		$post_id = trim( (string) ( $input['post_id'] ?? '' ) );
-		$image   = trim( (string) ( $input['image_path'] ?? '' ) );
-		$image_u = trim( (string) ( $input['image_url'] ?? '' ) );
-		$message = trim( (string) ( $input['message'] ?? '' ) );
-		if ( '' === $post_id ) {
+		$post_id  = trim( (string) ( $input['post_id'] ?? '' ) );
+		$ig_media = trim( (string) ( $input['instagram_media_id'] ?? '' ) );
+		$image    = trim( (string) ( $input['image_path'] ?? '' ) );
+		$image_u  = trim( (string) ( $input['image_url'] ?? '' ) );
+		$message  = trim( (string) ( $input['message'] ?? '' ) );
+		if ( '' !== $post_id && '' !== $ig_media ) {
+			return new \WP_Error( 'invalid_creative', 'Promote either a Page post (post_id) or an Instagram post (instagram_media_id), not both.' );
+		}
+		if ( '' !== $ig_media && ! ctype_digit( $ig_media ) ) {
+			return new \WP_Error( 'invalid_creative', 'instagram_media_id must be the numeric Instagram media ID.' );
+		}
+		if ( '' === $post_id && '' === $ig_media ) {
 			if ( '' === $message ) {
 				return new \WP_Error( 'invalid_creative', 'message is required when not promoting an existing post.' );
 			}
 			if ( '' === $image && '' === $image_u ) {
 				return new \WP_Error( 'invalid_creative', 'image_path or image_url is required when not promoting an existing post.' );
 			}
+		}
+
+		// Boosting an Instagram post defaults to Instagram placements only.
+		$platforms = self::platforms( $input['platforms'] ?? array(), '' !== $ig_media ? array( 'instagram' ) : self::PLATFORMS );
+		if ( is_wp_error( $platforms ) ) {
+			return $platforms;
 		}
 
 		return array(
@@ -182,11 +198,33 @@ final class FacebookAdsPolicy {
 			'interests'     => $interests,
 			'link'          => $link,
 			'post_id'       => $post_id,
+			'ig_media_id'   => $ig_media,
+			'platforms'     => $platforms,
 			'image_path'    => $image,
 			'image_url'     => $image_u,
 			'message'       => $message,
 			'headline'      => trim( (string) ( $input['headline'] ?? '' ) ),
 		);
+	}
+
+	/**
+	 * Normalize requested placements.
+	 *
+	 * @param mixed    $requested Array or comma list; empty -> $default.
+	 * @param string[] $default   Default placements.
+	 * @return string[]|\WP_Error
+	 */
+	public static function platforms( $requested, array $default ) {
+		$list = is_array( $requested ) ? $requested : explode( ',', (string) $requested );
+		$list = array_values( array_unique( array_filter( array_map( static fn( $p ) => strtolower( trim( (string) $p ) ), $list ) ) ) );
+		if ( empty( $list ) ) {
+			return $default;
+		}
+		$unknown = array_diff( $list, self::PLATFORMS );
+		if ( $unknown ) {
+			return new \WP_Error( 'invalid_platforms', 'Unknown platform(s): ' . implode( ', ', $unknown ) . '. Use facebook and/or instagram.' );
+		}
+		return $list;
 	}
 
 	/**
@@ -215,9 +253,8 @@ final class FacebookAdsPolicy {
 	 *
 	 * @param array $promotion Output of validate().
 	 * @param array $interests Resolved interests.
-	 * @param bool  $instagram Whether Instagram placements are available.
 	 */
-	public static function targeting( array $promotion, array $interests, bool $instagram ): array {
+	public static function targeting( array $promotion, array $interests ): array {
 		$targeting = array(
 			'geo_locations'        => array(
 				'custom_locations' => array(
@@ -231,7 +268,7 @@ final class FacebookAdsPolicy {
 			),
 			'age_min'              => $promotion['age_min'],
 			'age_max'              => $promotion['age_max'],
-			'publisher_platforms'  => $instagram ? array( 'facebook', 'instagram' ) : array( 'facebook' ),
+			'publisher_platforms'  => $promotion['platforms'],
 			// Keep Meta from widening the audience beyond what a human approved.
 			'targeting_automation' => array( 'advantage_audience' => 0 ),
 		);
@@ -258,11 +295,12 @@ final class FacebookAdsPolicy {
 			'audience'      => sprintf( 'Ages %d-%d within %d miles of %.4f,%.4f', $promotion['age_min'], $promotion['age_max'], $promotion['radius_miles'], $promotion['latitude'], $promotion['longitude'] ),
 			'interests'     => array_map( static fn( $i ) => (string) ( $i['name'] ?? '' ), $interests ),
 			'destination'   => $promotion['link'],
-			'creative'      => '' !== $promotion['post_id'] ? 'Existing Page post ' . $promotion['post_id'] : array(
+			'platforms'     => implode( ' + ', $promotion['platforms'] ),
+			'creative'      => '' !== $promotion['ig_media_id'] ? 'Existing Instagram post ' . $promotion['ig_media_id'] : ( '' !== $promotion['post_id'] ? 'Existing Page post ' . $promotion['post_id'] : array(
 				'message'  => $promotion['message'],
 				'headline' => $promotion['headline'],
 				'image'    => '' !== $promotion['image_path'] ? basename( $promotion['image_path'] ) : $promotion['image_url'],
-			),
+			) ),
 			'objective'     => 'Link clicks (OUTCOME_TRAFFIC)',
 		);
 	}
