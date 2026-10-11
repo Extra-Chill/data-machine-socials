@@ -26,6 +26,13 @@ class FacebookAuth extends \DataMachine\Core\OAuth\BaseOAuth2Provider {
 	public const SCOPES            = 'email,public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,business_management';
 	public const GRAPH_API_URL     = 'https://graph.facebook.com/' . self::GRAPH_API_VERSION;
 
+	/**
+	 * Paid-promotion scopes (#281). Requested only through the explicit
+	 * get_ads_authorization_url() opt-in, never by the default Page
+	 * connection, so connecting a Page for posting cannot grant spend.
+	 */
+	public const ADS_SCOPES = 'ads_management,ads_read';
+
 	public function __construct() {
 		parent::__construct( 'facebook' );
 	}
@@ -277,13 +284,73 @@ class FacebookAuth extends \DataMachine\Core\OAuth\BaseOAuth2Provider {
 	* @return string Authorization URL
 	*/
 	public function get_authorization_url(): string {
+		return $this->build_authorization_url( self::SCOPES );
+	}
+
+	/**
+	 * Authorization URL that additionally requests ads permissions.
+	 *
+	 * Explicit opt-in for paid promotion. The resulting user token replaces
+	 * the stored one through the normal callback.
+	 *
+	 * @return string Authorization URL
+	 */
+	public function get_ads_authorization_url(): string {
+		return $this->build_authorization_url( self::SCOPES . ',' . self::ADS_SCOPES );
+	}
+
+	/**
+	 * Whether the stored user token was granted ads_management.
+	 *
+	 * Checked live against /me/permissions so a revoked grant stops spend
+	 * immediately. Cached for five minutes per token.
+	 */
+	public function has_ads_permission(): bool {
+		$token = $this->get_valid_user_access_token();
+		if ( empty( $token ) ) {
+			return false;
+		}
+
+		$cache_key = 'dms_fb_ads_perm_' . substr( hash( 'sha256', $token ), 0, 16 );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return 'yes' === $cached;
+		}
+
+		$result = \DataMachine\Core\HttpClient::get(
+			self::GRAPH_API_URL . '/me/permissions?access_token=' . rawurlencode( $token ),
+			array(
+				'context' => 'Facebook Ads Permission',
+				'timeout' => 20,
+			)
+		);
+		$body   = json_decode( (string) ( $result['data'] ?? '' ), true );
+		$has    = false;
+		foreach ( (array) ( $body['data'] ?? array() ) as $grant ) {
+			if ( 'ads_management' === ( $grant['permission'] ?? '' ) && 'granted' === ( $grant['status'] ?? '' ) ) {
+				$has = true;
+			}
+		}
+
+		if ( ! empty( $result['success'] ) ) {
+			set_transient( $cache_key, $has ? 'yes' : 'no', 5 * MINUTE_IN_SECONDS );
+		}
+		return $has;
+	}
+
+	/**
+	 * Build an OAuth dialog URL for a scope set.
+	 *
+	 * @param string $scopes Comma-separated scopes.
+	 */
+	private function build_authorization_url( string $scopes ): string {
 		$state = $this->oauth2->create_state( 'facebook' );
 
 		$config = $this->get_config();
 		$params = array(
 			'client_id'     => $config['app_id'] ?? '',
 			'redirect_uri'  => $this->get_callback_url(),
-			'scope'         => self::SCOPES,
+			'scope'         => $scopes,
 			'response_type' => 'code',
 			'state'         => $state,
 		);
