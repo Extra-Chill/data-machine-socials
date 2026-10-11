@@ -71,6 +71,14 @@ class OAuthStorageCallbackContractTest extends WP_UnitTestCase {
 		$auth    = new $auth_class();
 		$capture = new CapturingOAuth2Handler();
 
+		// Some providers redirect away before the token exchange when app
+		// credentials are missing; configure every declared field.
+		$config = array();
+		foreach ( array_keys( $auth->get_config_fields() ) as $field ) {
+			$config[ $field ] = 'test-' . $field;
+		}
+		$auth->save_config( $config );
+
 		$property = new \ReflectionProperty( $auth, 'oauth2' );
 		$property->setAccessible( true );
 		$property->setValue( $auth, $capture );
