@@ -21,8 +21,8 @@ defined( 'ABSPATH' ) || exit;
 
 final class FacebookAdsPolicy {
 
-	/** Site option holding the selected ad account and spend limits. */
-	public const OPTION = 'datamachine_socials_facebook_ads';
+	/** Site option holding the hard spend limits. */
+	public const OPTION = 'datamachine_socials_facebook_ads_limits';
 
 	/** Default hard cap on one promotion's lifetime budget, in account major units. */
 	public const DEFAULT_MAX_LIFETIME_BUDGET = 100;
@@ -40,64 +40,46 @@ final class FacebookAdsPolicy {
 	private const ZERO_DECIMAL_CURRENCIES = array( 'CLP', 'COP', 'CRC', 'HUF', 'ISK', 'IDR', 'JPY', 'KRW', 'PYG', 'TWD', 'VND' );
 
 	/**
-	 * Stored settings merged over defaults.
+	 * Stored hard limits merged over defaults.
 	 *
-	 * @return array{ad_account_id: string, max_lifetime_budget: float, max_duration_days: int}
+	 * @return array{max_lifetime_budget: float, max_duration_days: int}
 	 */
-	public static function settings(): array {
+	public static function limits(): array {
 		$stored = get_site_option( self::OPTION, array() );
 		$stored = is_array( $stored ) ? $stored : array();
 
 		return array(
-			'ad_account_id'       => self::normalize_account_id( (string) ( $stored['ad_account_id'] ?? '' ) ),
 			'max_lifetime_budget' => (float) ( $stored['max_lifetime_budget'] ?? self::DEFAULT_MAX_LIFETIME_BUDGET ),
 			'max_duration_days'   => (int) ( $stored['max_duration_days'] ?? self::DEFAULT_MAX_DURATION_DAYS ),
 		);
 	}
 
 	/**
-	 * Persist settings (partial updates allowed).
+	 * Persist hard limits (partial updates allowed).
 	 *
-	 * @param array $changes Keys: ad_account_id, max_lifetime_budget, max_duration_days.
-	 * @return array|\WP_Error Saved settings.
+	 * @param array $changes Keys: max_lifetime_budget, max_duration_days.
+	 * @return array|\WP_Error Saved limits.
 	 */
-	public static function save_settings( array $changes ) {
-		$settings = self::settings();
+	public static function save_limits( array $changes ) {
+		$limits = self::limits();
 
-		if ( array_key_exists( 'ad_account_id', $changes ) ) {
-			$settings['ad_account_id'] = self::normalize_account_id( (string) $changes['ad_account_id'] );
-		}
 		if ( array_key_exists( 'max_lifetime_budget', $changes ) ) {
 			$budget = (float) $changes['max_lifetime_budget'];
 			if ( $budget <= 0 ) {
 				return new \WP_Error( 'invalid_limit', 'max_lifetime_budget must be greater than 0.' );
 			}
-			$settings['max_lifetime_budget'] = $budget;
+			$limits['max_lifetime_budget'] = $budget;
 		}
 		if ( array_key_exists( 'max_duration_days', $changes ) ) {
 			$days = (int) $changes['max_duration_days'];
 			if ( $days < 1 ) {
 				return new \WP_Error( 'invalid_limit', 'max_duration_days must be at least 1.' );
 			}
-			$settings['max_duration_days'] = $days;
+			$limits['max_duration_days'] = $days;
 		}
 
-		update_site_option( self::OPTION, $settings );
-		return $settings;
-	}
-
-	/**
-	 * "123" or "act_123" -> "act_123"; anything else -> "".
-	 *
-	 * @param string $id Raw ad account ID.
-	 */
-	public static function normalize_account_id( string $id ): string {
-		$id = trim( $id );
-		if ( '' === $id ) {
-			return '';
-		}
-		$digits = preg_replace( '/^act_/', '', $id );
-		return ctype_digit( (string) $digits ) ? 'act_' . $digits : '';
+		update_site_option( self::OPTION, $limits );
+		return $limits;
 	}
 
 	/**
@@ -112,13 +94,14 @@ final class FacebookAdsPolicy {
 	/**
 	 * Validate and normalize a promotion request against hard limits.
 	 *
-	 * @param array $input  Promotion input (see FacebookAdsAbility promote schema).
-	 * @param array $limits Output of settings().
-	 * @param int   $now    Current Unix time.
+	 * @param array  $input      Promotion input (see FacebookAdsPromoteAbility schema).
+	 * @param array  $limits     Output of limits().
+	 * @param string $ad_account Configured ad account (act_<id>), "" if unset.
+	 * @param int    $now        Current Unix time.
 	 * @return array|\WP_Error Normalized promotion.
 	 */
-	public static function validate( array $input, array $limits, int $now ) {
-		if ( '' === ( $limits['ad_account_id'] ?? '' ) ) {
+	public static function validate( array $input, array $limits, string $ad_account, int $now ) {
+		if ( '' === $ad_account ) {
 			return new \WP_Error( 'ads_not_configured', 'No ad account selected. Run `wp datamachine-socials facebook ads-config --account=act_<id>` first.' );
 		}
 
@@ -186,7 +169,7 @@ final class FacebookAdsPolicy {
 		}
 
 		return array(
-			'ad_account_id' => $limits['ad_account_id'],
+			'ad_account_id' => $ad_account,
 			'name'          => trim( (string) ( $input['name'] ?? '' ) ) ? trim( (string) $input['name'] ) : 'Promotion ' . gmdate( 'Y-m-d', $start ),
 			'budget'        => $budget,
 			'start_time'    => $start,
@@ -213,7 +196,7 @@ final class FacebookAdsPolicy {
 	 * @param int   $offset                Currency offset.
 	 * @param int   $start                 Ad set start (Unix).
 	 * @param int   $end                   Ad set end (Unix).
-	 * @param array $limits                Output of settings().
+	 * @param array $limits                Output of limits().
 	 * @return true|\WP_Error
 	 */
 	public static function recheck( int $lifetime_budget_minor, int $offset, int $start, int $end, array $limits ) {

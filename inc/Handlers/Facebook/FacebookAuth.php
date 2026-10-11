@@ -44,19 +44,55 @@ class FacebookAuth extends \DataMachine\Core\OAuth\BaseOAuth2Provider {
 	*/
 	public function get_config_fields(): array {
 		return array(
-			'app_id'     => array(
+			'app_id'        => array(
 				'label'       => __( 'App ID', 'data-machine-socials' ),
 				'type'        => 'text',
 				'required'    => true,
 				'description' => __( 'Your Facebook application App ID from developers.facebook.com', 'data-machine-socials' ),
 			),
-			'app_secret' => array(
+			'app_secret'    => array(
 				'label'       => __( 'App Secret', 'data-machine-socials' ),
 				'type'        => 'text',
 				'required'    => true,
 				'description' => __( 'Your Facebook application App Secret from developers.facebook.com', 'data-machine-socials' ),
 			),
+			'ad_account_id' => array(
+				'label'       => __( 'Ad Account ID', 'data-machine-socials' ),
+				'type'        => 'text',
+				'required'    => false,
+				'description' => __( 'Optional. Meta ad account (act_<id>) used for paid promotions. Spend always requires human approval.', 'data-machine-socials' ),
+			),
 		);
+	}
+
+	/**
+	 * Configured ad account as "act_<digits>", or "" when unset/invalid.
+	 */
+	public function get_ad_account_id(): string {
+		return self::normalize_ad_account_id( (string) ( $this->get_config()['ad_account_id'] ?? '' ) );
+	}
+
+	/**
+	 * Store the ad account, preserving the rest of the provider config.
+	 *
+	 * @param string $id "123" or "act_123"; "" clears it.
+	 */
+	public function set_ad_account_id( string $id ): bool {
+		$normalized = self::normalize_ad_account_id( $id );
+		if ( '' !== trim( $id ) && '' === $normalized ) {
+			return false;
+		}
+		return $this->save_config( array_merge( $this->get_config(), array( 'ad_account_id' => $normalized ) ) );
+	}
+
+	/**
+	 * "123" or "act_123" -> "act_123"; anything else -> "".
+	 *
+	 * @param string $id Raw ad account ID.
+	 */
+	public static function normalize_ad_account_id( string $id ): string {
+		$digits = preg_replace( '/^act_/', '', trim( $id ) );
+		return ( '' !== $digits && ctype_digit( (string) $digits ) ) ? 'act_' . $digits : '';
 	}
 
 	/**

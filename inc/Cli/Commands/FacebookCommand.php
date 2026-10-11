@@ -577,27 +577,32 @@ class FacebookCommand {
 	 * @subcommand ads-config
 	 */
 	public function ads_config( $args, $assoc_args ) {
-		$changes = array();
-		if ( isset( $assoc_args['account'] ) ) {
-			$changes['ad_account_id'] = $assoc_args['account'];
+		$auth = \DataMachineSocials\Handlers\Facebook\FacebookGraphClient::auth();
+		if ( ! $auth ) {
+			WP_CLI::error( 'Facebook auth provider not available.' );
 		}
+
+		if ( isset( $assoc_args['account'] ) && ! $auth->set_ad_account_id( (string) $assoc_args['account'] ) ) {
+			WP_CLI::error( 'Invalid ad account ID. Use act_<digits> or the numeric ID.' );
+		}
+
+		$changes = array();
 		if ( isset( $assoc_args['max-budget'] ) ) {
 			$changes['max_lifetime_budget'] = $assoc_args['max-budget'];
 		}
 		if ( isset( $assoc_args['max-days'] ) ) {
 			$changes['max_duration_days'] = $assoc_args['max-days'];
 		}
-
-		$settings = $changes ? \DataMachineSocials\Abilities\Facebook\FacebookAdsPolicy::save_settings( $changes ) : \DataMachineSocials\Abilities\Facebook\FacebookAdsPolicy::settings();
-		if ( is_wp_error( $settings ) ) {
-			WP_CLI::error( $settings->get_error_message() );
+		$limits = $changes ? \DataMachineSocials\Abilities\Facebook\FacebookAdsPolicy::save_limits( $changes ) : \DataMachineSocials\Abilities\Facebook\FacebookAdsPolicy::limits();
+		if ( is_wp_error( $limits ) ) {
+			WP_CLI::error( $limits->get_error_message() );
 		}
 
-		$auth = ( new AuthAbilities() )->getProvider( 'facebook' );
-		WP_CLI::log( 'Ad account:      ' . ( $settings['ad_account_id'] ? $settings['ad_account_id'] : '(none)' ) );
-		WP_CLI::log( 'Max budget:      ' . $settings['max_lifetime_budget'] . ' per promotion' );
-		WP_CLI::log( 'Max duration:    ' . $settings['max_duration_days'] . ' days' );
-		WP_CLI::log( 'Ads permission:  ' . ( ( $auth && method_exists( $auth, 'has_ads_permission' ) && $auth->has_ads_permission() ) ? 'granted' : 'not granted (run ads-connect)' ) );
+		$account = $auth->get_ad_account_id();
+		WP_CLI::log( 'Ad account:      ' . ( '' !== $account ? $account : '(none)' ) );
+		WP_CLI::log( 'Max budget:      ' . $limits['max_lifetime_budget'] . ' per promotion' );
+		WP_CLI::log( 'Max duration:    ' . $limits['max_duration_days'] . ' days' );
+		WP_CLI::log( 'Ads permission:  ' . ( $auth->has_ads_permission() ? 'granted' : 'not granted (run ads-connect)' ) );
 	}
 
 	/**

@@ -13,7 +13,7 @@
 
 namespace DataMachineSocials\Tests\Unit\Abilities\Facebook;
 
-use DataMachineSocials\Abilities\Facebook\FacebookAdsAbility;
+use DataMachineSocials\Abilities\Facebook\FacebookPromotionApproval;
 use DataMachineSocials\Abilities\Facebook\FacebookAdsPolicy;
 use DataMachineSocials\Handlers\Facebook\FacebookAuth;
 use WP_UnitTestCase;
@@ -24,7 +24,6 @@ class FacebookAdsTest extends WP_UnitTestCase {
 
 	private function limits(): array {
 		return array(
-			'ad_account_id'       => 'act_123',
 			'max_lifetime_budget' => 75.0,
 			'max_duration_days'   => 10,
 		);
@@ -48,11 +47,12 @@ class FacebookAdsTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
 		delete_site_option( FacebookAdsPolicy::OPTION );
+		delete_site_option( 'datamachine_auth_data' );
 		parent::tear_down();
 	}
 
 	public function test_valid_promotion_normalizes(): void {
-		$p = FacebookAdsPolicy::validate( $this->input(), $this->limits(), self::NOW );
+		$p = FacebookAdsPolicy::validate( $this->input(), $this->limits(), 'act_123', self::NOW );
 
 		$this->assertIsArray( $p );
 		$this->assertSame( 'act_123', $p['ad_account_id'] );
@@ -64,7 +64,7 @@ class FacebookAdsTest extends WP_UnitTestCase {
 	 * @dataProvider refusals
 	 */
 	public function test_hard_limits_refuse( array $overrides, string $code ): void {
-		$result = FacebookAdsPolicy::validate( $this->input( $overrides ), $this->limits(), self::NOW );
+		$result = FacebookAdsPolicy::validate( $this->input( $overrides ), $this->limits(), 'act_123', self::NOW );
 
 		$this->assertWPError( $result );
 		$this->assertSame( $code, $result->get_error_code() );
@@ -86,10 +86,7 @@ class FacebookAdsTest extends WP_UnitTestCase {
 	}
 
 	public function test_requires_a_configured_ad_account(): void {
-		$limits                  = $this->limits();
-		$limits['ad_account_id'] = '';
-
-		$result = FacebookAdsPolicy::validate( $this->input(), $limits, self::NOW );
+		$result = FacebookAdsPolicy::validate( $this->input(), $this->limits(), '', self::NOW );
 
 		$this->assertSame( 'ads_not_configured', $result->get_error_code() );
 	}
@@ -101,7 +98,7 @@ class FacebookAdsTest extends WP_UnitTestCase {
 	}
 
 	public function test_targeting_is_local_and_locks_advantage_audience(): void {
-		$p = FacebookAdsPolicy::validate( $this->input(), $this->limits(), self::NOW );
+		$p = FacebookAdsPolicy::validate( $this->input(), $this->limits(), 'act_123', self::NOW );
 		$t = FacebookAdsPolicy::targeting( $p, array( array( 'id' => '1', 'name' => 'Live music' ) ), false );
 
 		$this->assertSame( 15, $t['geo_locations']['custom_locations'][0]['radius'] );
@@ -116,13 +113,31 @@ class FacebookAdsTest extends WP_UnitTestCase {
 		$this->assertSame( 1, FacebookAdsPolicy::currency_offset( 'JPY' ) );
 	}
 
-	public function test_settings_round_trip_and_reject_bad_limits(): void {
-		FacebookAdsPolicy::save_settings( array( 'ad_account_id' => '987', 'max_lifetime_budget' => 40 ) );
+	public function test_limits_round_trip_and_reject_bad_values(): void {
+		FacebookAdsPolicy::save_limits( array( 'max_lifetime_budget' => 40 ) );
 
-		$this->assertSame( 'act_987', FacebookAdsPolicy::settings()['ad_account_id'] );
-		$this->assertSame( 40.0, FacebookAdsPolicy::settings()['max_lifetime_budget'] );
-		$this->assertWPError( FacebookAdsPolicy::save_settings( array( 'max_lifetime_budget' => 0 ) ) );
-		$this->assertSame( '', FacebookAdsPolicy::normalize_account_id( 'act_abc' ) );
+		$this->assertSame( 40.0, FacebookAdsPolicy::limits()['max_lifetime_budget'] );
+		$this->assertSame( FacebookAdsPolicy::DEFAULT_MAX_DURATION_DAYS, FacebookAdsPolicy::limits()['max_duration_days'] );
+		$this->assertWPError( FacebookAdsPolicy::save_limits( array( 'max_lifetime_budget' => 0 ) ) );
+	}
+
+	public function test_ad_account_lives_in_facebook_config_without_clobbering_it(): void {
+		$auth = new FacebookAuth();
+		$auth->save_config(
+			array(
+				'app_id'     => 'id_1',
+				'app_secret' => 'secret_1',
+			)
+		);
+
+		$this->assertTrue( $auth->set_ad_account_id( '987' ) );
+		$this->assertSame( 'act_987', $auth->get_ad_account_id() );
+		$this->assertSame( 'id_1', $auth->get_config()['app_id'] );
+		$this->assertFalse( $auth->set_ad_account_id( 'act_abc' ) );
+		$this->assertSame( 'act_987', $auth->get_ad_account_id() );
+		// Declared so the admin settings form round-trips it instead of dropping it.
+		$this->assertArrayHasKey( 'ad_account_id', $auth->get_config_fields() );
+		$this->assertFalse( $auth->get_config_fields()['ad_account_id']['required'] );
 	}
 
 	public function test_posting_connection_never_requests_ads_scopes(): void {
@@ -133,7 +148,7 @@ class FacebookAdsTest extends WP_UnitTestCase {
 	public function test_apply_handler_matches_resolver_contract(): void {
 		// ResolvePendingActionAbility::isApplyHandler() requires >= 3 params
 		// (input, payload, receipt); fewer is treated as "no handler".
-		$reflection = new \ReflectionMethod( FacebookAdsAbility::class, 'apply' );
+		$reflection = new \ReflectionMethod( FacebookPromotionApproval::class, 'apply' );
 
 		$this->assertGreaterThanOrEqual( 3, $reflection->getNumberOfParameters() );
 	}
@@ -145,9 +160,9 @@ class FacebookAdsTest extends WP_UnitTestCase {
 			grant_super_admin( $admin );
 		}
 
-		$this->assertTrue( FacebookAdsAbility::canResolve( array(), 'accepted', $admin ) );
-		$this->assertWPError( FacebookAdsAbility::canResolve( array(), 'accepted', $editor ) );
-		$this->assertWPError( FacebookAdsAbility::canResolve( array(), 'accepted', 0 ) );
-		$this->assertTrue( FacebookAdsAbility::canResolve( array(), 'accepted', 0, array( 'resolution_transport' => 'signed_url' ) ) );
+		$this->assertTrue( FacebookPromotionApproval::can_resolve( array(), 'accepted', $admin ) );
+		$this->assertWPError( FacebookPromotionApproval::can_resolve( array(), 'accepted', $editor ) );
+		$this->assertWPError( FacebookPromotionApproval::can_resolve( array(), 'accepted', 0 ) );
+		$this->assertTrue( FacebookPromotionApproval::can_resolve( array(), 'accepted', 0, array( 'resolution_transport' => 'signed_url' ) ) );
 	}
 }
