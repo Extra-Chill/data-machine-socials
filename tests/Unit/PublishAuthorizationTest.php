@@ -110,4 +110,76 @@ final class PublishAuthorizationTest extends WP_UnitTestCase {
 		$this->assertTrue( $ability->get_meta()['show_in_rest'] );
 		$this->assertTrue( $ability->check_permissions( array( 'title' => 'Authorized upload' ) ) );
 	}
+
+	/**
+	 * Abilities that act on a connected account, keyed by the policy action
+	 * they must be gated on.
+	 *
+	 * @return array<string,array{0:string,1:string,2:array<string,mixed>}>
+	 */
+	public function provide_account_abilities(): array {
+		return array(
+			'instagram comment reply' => array( 'datamachine/instagram-comment-reply', 'publish', array() ),
+			'facebook comment reply'  => array( 'datamachine/facebook-comment-reply', 'publish', array() ),
+			'instagram delete'        => array( 'datamachine/instagram-delete', 'publish', array() ),
+			'twitter update'          => array( 'datamachine/twitter-update', 'publish', array() ),
+			'tumblr engage'           => array( 'datamachine/tumblr-engage', 'publish', array() ),
+			'message send'            => array( 'datamachine/social-messages', 'publish', array( 'action' => 'send' ) ),
+			'message list'            => array( 'datamachine/social-messages', 'edit', array( 'action' => 'conversations' ) ),
+			'comments listing'        => array( 'datamachine/social-comments', 'edit', array() ),
+			'facebook read'           => array( 'datamachine/facebook-read', 'edit', array() ),
+			'instagram account'       => array( 'datamachine/instagram-account', 'edit', array() ),
+		);
+	}
+
+	/**
+	 * @dataProvider provide_account_abilities
+	 */
+	public function test_policy_allowed_user_reaches_account_ability_without_use_tools( string $name, string $expected_action, array $input ): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $user_id );
+		$this->assertFalse( user_can( $user_id, 'datamachine_use_tools' ) );
+
+		$seen = array();
+		add_filter(
+			'datamachine_socials_user_can',
+			function ( bool $allowed, string $action ) use ( &$seen ): bool {
+				$seen[] = $action;
+				return true;
+			},
+			10,
+			2
+		);
+
+		$ability = wp_get_ability( $name );
+		$this->assertNotNull( $ability, $name );
+		$this->assertTrue( $ability->check_permissions( $input ), $name );
+		$this->assertContains( $expected_action, $seen, $name );
+	}
+
+	/**
+	 * @dataProvider provide_account_abilities
+	 */
+	public function test_policy_denied_user_is_refused_even_with_use_tools( string $name, string $expected_action, array $input ): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user_id );
+		$this->assertTrue( user_can( $user_id, 'datamachine_use_tools' ) );
+		add_filter( 'datamachine_socials_user_can', '__return_false' );
+
+		$this->assertFalse( wp_get_ability( $name )->check_permissions( $input ), $name );
+	}
+
+	public function test_ads_and_reddit_abilities_keep_use_tools_gate(): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $user_id );
+		add_filter( 'datamachine_socials_user_can', '__return_true' );
+
+		foreach ( array( 'datamachine/facebook-ads-promote', 'datamachine/vote-reddit' ) as $name ) {
+			$ability = wp_get_ability( $name );
+			if ( null === $ability ) {
+				continue;
+			}
+			$this->assertFalse( $ability->check_permissions( array() ), $name );
+		}
+	}
 }
