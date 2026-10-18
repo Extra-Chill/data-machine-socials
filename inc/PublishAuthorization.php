@@ -21,9 +21,10 @@ defined( 'ABSPATH' ) || exit;
  * - `can_publish()` (action `publish`): anything visible on the account —
  *   publishing, updates, deletes, comment replies, engagement, message sends.
  *
- * Ads abilities (they spend money) and Reddit abilities (they act on a
- * third-party community rather than a connected brand account) deliberately
- * keep Data Machine's stricter `use_tools` gate.
+ * Ads abilities (they spend money) and Reddit abilities (they act as the
+ * brand in a third-party community) require BOTH this policy and Data
+ * Machine's `use_tools` capability. `use_tools` alone is not a boundary:
+ * Data Machine grants it to the author and editor roles by default.
  */
 final class PublishAuthorization {
 

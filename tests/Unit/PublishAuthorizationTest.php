@@ -169,17 +169,47 @@ final class PublishAuthorizationTest extends WP_UnitTestCase {
 		$this->assertFalse( wp_get_ability( $name )->check_permissions( $input ), $name );
 	}
 
-	public function test_ads_and_reddit_abilities_keep_use_tools_gate(): void {
-		$user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
-		wp_set_current_user( $user_id );
+	/**
+	 * @return array<string,array{0:string}>
+	 */
+	public function provide_strict_abilities(): array {
+		return array(
+			'ads promote'  => array( 'datamachine/facebook-ads-promote' ),
+			'ads report'   => array( 'datamachine/facebook-ads-report' ),
+			'reddit vote'  => array( 'datamachine/vote-reddit' ),
+			'reddit reply' => array( 'datamachine/reply-reddit' ),
+			'reddit fetch' => array( 'datamachine/fetch-reddit' ),
+		);
+	}
+
+	/**
+	 * @dataProvider provide_strict_abilities
+	 */
+	public function test_strict_ability_requires_use_tools_even_when_policy_allows( string $name ): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 		add_filter( 'datamachine_socials_user_can', '__return_true' );
 
-		foreach ( array( 'datamachine/facebook-ads-promote', 'datamachine/vote-reddit' ) as $name ) {
-			$ability = wp_get_ability( $name );
-			if ( null === $ability ) {
-				continue;
-			}
-			$this->assertFalse( $ability->check_permissions( array() ), $name );
-		}
+		$this->assertFalse( wp_get_ability( $name )->check_permissions( array() ), $name );
+	}
+
+	/**
+	 * Data Machine grants use_tools to authors by default, so use_tools alone
+	 * must not open brand ads or Reddit to a user the socials policy denies.
+	 *
+	 * @dataProvider provide_strict_abilities
+	 */
+	public function test_strict_ability_requires_policy_even_with_use_tools( string $name ): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		wp_set_current_user( $user_id );
+		get_userdata( $user_id )->add_cap( 'datamachine_use_tools' );
+		add_filter( 'datamachine_socials_user_can', '__return_false' );
+
+		$this->assertFalse( wp_get_ability( $name )->check_permissions( array() ), $name );
+	}
+
+	public function test_strict_ability_allows_policy_and_use_tools_holder(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$this->assertTrue( wp_get_ability( 'datamachine/vote-reddit' )->check_permissions( array() ) );
 	}
 }
