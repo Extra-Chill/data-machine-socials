@@ -50,27 +50,42 @@ class InstagramAccountTest extends WP_UnitTestCase {
 				++$requests;
 			}
 			return array(
-			'response' => array( 'code' => 200 ),
-			'body'     => wp_json_encode( array(
-				'business_discovery' => array(
-					'name'  => 'Venue',
-					'media' => array(
-						'data' => array(
-							array(
-								'id'         => '123',
-								'caption'    => 'Show tonight',
-								'timestamp'  => '2026-10-15T00:00:00+00:00',
-								'media_type' => 'IMAGE',
-								'media_url'  => 'https://example.org/flyer.jpg',
-								'permalink'  => 'https://instagram.com/p/123',
+				'response' => array( 'code' => 200 ),
+				'body'     => wp_json_encode( array(
+					'business_discovery' => array(
+						'name'  => 'Venue',
+						'media' => array(
+							'data' => array(
+								array(
+									'id'         => '123',
+									'caption'    => 'Show tonight',
+									'timestamp'  => '2026-10-15T00:00:00+00:00',
+									'media_type' => 'IMAGE',
+									'media_url'  => 'https://example.org/flyer.jpg',
+									'permalink'  => 'https://instagram.com/p/123',
+								),
+								array(
+									'id'        => 'context-1',
+									'timestamp' => '2026-10-14T00:00:00+00:00',
+									'permalink' => 'https://instagram.com/p/context-1',
+									'caption'   => 'Doors at 7pm',
+								),
+								array(
+									'id'        => 'context-2',
+									'timestamp' => '2026-10-13T00:00:00+00:00',
+									'permalink' => 'https://instagram.com/p/context-2',
+									'caption'   => 'At the Waverly',
+								),
+								array(
+									'id'        => 'context-3',
+									'timestamp' => '2026-10-12T00:00:00+00:00',
+									'permalink' => 'https://instagram.com/p/context-3',
+									'caption'   => 'Tickets available',
+								),
 							),
-							array( 'id' => 'context-1', 'timestamp' => '2026-10-14T00:00:00+00:00', 'permalink' => 'https://instagram.com/p/context-1', 'caption' => 'Doors at 7pm' ),
-							array( 'id' => 'context-2', 'timestamp' => '2026-10-13T00:00:00+00:00', 'permalink' => 'https://instagram.com/p/context-2', 'caption' => 'At the Waverly' ),
-							array( 'id' => 'context-3', 'timestamp' => '2026-10-12T00:00:00+00:00', 'permalink' => 'https://instagram.com/p/context-3', 'caption' => 'Tickets available' ),
 						),
 					),
-				),
-			) ),
+				) ),
 			);
 		}, 10, 3 );
 		$context = $this->getMockBuilder( ExecutionContext::class )->disableOriginalConstructor()->onlyMethods( array( 'isItemProcessed', 'isItemClaimed', 'isDirect', 'isStandalone', 'downloadFile', 'log' ) )->getMock();
@@ -88,7 +103,10 @@ class InstagramAccountTest extends WP_UnitTestCase {
 				return $this->executeFetch( $config, $context );
 			}
 		};
-		$config = array( 'username' => 'venue', 'max_items' => 1 );
+		$config  = array(
+			'username'  => 'venue',
+			'max_items' => 1,
+		);
 		if ( null !== $recent_context ) {
 			$config['recent_context'] = $recent_context;
 		}

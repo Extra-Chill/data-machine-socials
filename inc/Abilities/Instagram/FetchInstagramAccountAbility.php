@@ -25,8 +25,8 @@ class FetchInstagramAccountAbility extends AbstractSocialAbility {
 					'type'       => 'object',
 					'required'   => array( 'username' ),
 					'properties' => array(
-						'username'  => array( 'type' => 'string' ),
-						'max_items' => array(
+						'username'       => array( 'type' => 'string' ),
+						'max_items'      => array(
 							'type'    => 'integer',
 							'minimum' => 1,
 							'maximum' => 500,
@@ -39,11 +39,11 @@ class FetchInstagramAccountAbility extends AbstractSocialAbility {
 							'default'     => 0,
 							'description' => 'Other recent posts from the same fetched page, appended as context only; no extra requests.',
 						),
-						'days_back' => array(
+						'days_back'      => array(
 							'type'    => 'integer',
 							'minimum' => 0,
 						),
-						'search'    => array(
+						'search'         => array(
 							'type'        => 'string',
 							'description' => 'Comma-separated caption keywords; match any.',
 						),
@@ -92,12 +92,12 @@ class FetchInstagramAccountAbility extends AbstractSocialAbility {
 		}
 
 		$recent_context = max( 0, min( 12, (int) ( $input['recent_context'] ?? 0 ) ) );
-		$cutoff   = ! empty( $input['days_back'] ) ? time() - max( 0, (int) $input['days_back'] ) * DAY_IN_SECONDS : 0;
-		$keywords = array_filter( array_map( 'trim', explode( ',', $input['search'] ?? '' ) ) );
-		$items    = array();
-		$seen     = array();
-		$cursors  = array();
-		$after    = '';
+		$cutoff         = ! empty( $input['days_back'] ) ? time() - max( 0, (int) $input['days_back'] ) * DAY_IN_SECONDS : 0;
+		$keywords       = array_filter( array_map( 'trim', explode( ',', $input['search'] ?? '' ) ) );
+		$items          = array();
+		$seen           = array();
+		$cursors        = array();
+		$after          = '';
 		do {
 			$media    = 'media.limit(50)' . ( $after ? '.after(' . $after . ')' : '' );
 			$fields   = "business_discovery.username({$username}){username,name,followers_count,media_count,{$media}{id,timestamp,media_type,caption,media_url,thumbnail_url,permalink,children{media_url,media_type}}}";
@@ -118,7 +118,7 @@ class FetchInstagramAccountAbility extends AbstractSocialAbility {
 				return new \WP_Error( 'instagram_api', 'Invalid Business Discovery response from Instagram.' );
 			}
 			$context_posts = $recent_context ? $this->recentPosts( $account['media']['data'] ?? array() ) : array();
-			$old = false;
+			$old           = false;
 			foreach ( $account['media']['data'] ?? array() as $post ) {
 				$id = (string) ( $post['id'] ?? '' );
 				if ( ! $id || isset( $seen[ $id ] ) ) {
@@ -158,7 +158,7 @@ class FetchInstagramAccountAbility extends AbstractSocialAbility {
 				break;
 			}
 			$cursors[ $after ] = true;
-			$item_count = count( $items );
+			$item_count        = count( $items );
 		} while ( ! ( $collector ? $collector->isFull() : $item_count >= $limit ) );
 		return array(
 			'success' => true,
@@ -176,7 +176,7 @@ class FetchInstagramAccountAbility extends AbstractSocialAbility {
 			}
 		}
 		$posts = array_values( $unique );
-		usort( $posts, static fn( $a, $b ) => ( strtotime( $b['timestamp'] ?? '' ) ?: 0 ) <=> ( strtotime( $a['timestamp'] ?? '' ) ?: 0 ) );
+		usort( $posts, static fn( $a, $b ) => (int) strtotime( (string) ( $b['timestamp'] ?? '' ) ) <=> (int) strtotime( (string) ( $a['timestamp'] ?? '' ) ) );
 		return $posts;
 	}
 
