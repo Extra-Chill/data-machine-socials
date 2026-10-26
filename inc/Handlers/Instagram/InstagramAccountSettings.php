@@ -21,6 +21,14 @@ class InstagramAccountSettings extends FetchHandlerSettings {
 				'max'     => 500,
 				'default' => 10,
 			),
+			'recent_context' => array(
+				'type'        => 'number',
+				'label'       => __( 'Recent posts for context', 'data-machine-socials' ),
+				'description' => __( 'Append up to 12 other recent posts from the same fetched page as context only. No extra API requests; 0 disables context.', 'data-machine-socials' ),
+				'min'         => 0,
+				'max'         => 12,
+				'default'     => 0,
+			),
 			'days_back' => array(
 				'type'  => 'number',
 				'label' => __( 'Days back (0 = unlimited)', 'data-machine-socials' ),
@@ -46,6 +54,7 @@ class InstagramAccountSettings extends FetchHandlerSettings {
 	public static function sanitize( array $raw_settings ): array {
 		$settings             = parent::sanitize( $raw_settings );
 		$settings['username'] = self::normalizeUsername( (string) ( $raw_settings['username'] ?? '' ) );
+		$settings['recent_context'] = max( 0, min( 12, (int) ( $raw_settings['recent_context'] ?? 0 ) ) );
 		return $settings;
 	}
 }
