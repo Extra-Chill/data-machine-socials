@@ -114,12 +114,15 @@ class InstagramMessages extends FetchHandler {
 					}
 				}
 			}
+			if ( count( $items ) >= $config['max_items'] ) {
+				break;
+			}
 			$after = $result['data']['cursors']['after'] ?? '';
 			if ( empty( $result['data']['has_next'] ) || '' === $after || isset( $seen_cursors[ $after ] ) || empty( $conversations ) ) {
 				break;
 			}
 			$seen_cursors[ $after ] = true;
-		} while ( $remaining > 0 && count( $items ) < $config['max_items'] );
+		} while ( $remaining > 0 );
 
 		return $items ? array( 'items' => $items ) : array();
 	}
