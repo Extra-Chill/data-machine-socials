@@ -314,7 +314,7 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 				if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
 					return new \WP_Error( 'missing_param', 'Invalid image URL: ' . $url, array( 'status' => 400 ) );
 				}
-				$extension = strtolower( pathinfo( (string) parse_url( $url, PHP_URL_PATH ), PATHINFO_EXTENSION ) );
+				$extension = strtolower( pathinfo( (string) wp_parse_url( $url, PHP_URL_PATH ), PATHINFO_EXTENSION ) );
 				if ( ! in_array( $extension, array( 'jpg', 'jpeg' ), true ) ) {
 					return new \WP_Error( 'unsupported_image_format', 'Instagram feed and carousel images must be JPEG (.jpg or .jpeg). Unsupported image URL: ' . $url, array( 'status' => 400 ) );
 				}
@@ -322,7 +322,7 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 		}
 
 		// Auth check.
-		$auth     = new AuthAbilities();
+		$auth = new AuthAbilities();
 		/** @var \DataMachineSocials\Handlers\Instagram\InstagramAuth|null $provider */
 		$provider = $auth->getProvider( 'instagram' );
 
@@ -883,9 +883,9 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 	 * @param array $input Ability input.
 	 * @return array Account details or error.
 	 */
-	public static function get_account( array $input ): array|\WP_Error {
-		$input;
-		$auth     = new AuthAbilities();
+	public static function get_account( array $input ): array|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- ability callback signature.
+		unset( $input );
+		$auth = new AuthAbilities();
 		/** @var \DataMachineSocials\Handlers\Instagram\InstagramAuth|null $provider */
 		$provider = $auth->getProvider( 'instagram' );
 
