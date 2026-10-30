@@ -92,18 +92,18 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 						'type'       => 'object',
 						'required'   => array( 'content' ),
 						'properties' => array(
-							'content'         => array(
+							'content'            => array(
 								'type'        => 'string',
 								'description' => 'Post caption text (max 2200 characters)',
 								'maxLength'   => 2200,
 							),
-							'media_kind'      => array(
+							'media_kind'         => array(
 								'type'        => 'string',
 								'description' => 'Type of media to publish: image (default), carousel, reel, or story',
 								'enum'        => array( 'image', 'carousel', 'reel', 'story' ),
 								'default'     => 'image',
 							),
-							'image_urls'      => array(
+							'image_urls'         => array(
 								'type'        => 'array',
 								'description' => 'Array of image URLs to post (1-10 for carousel, 1 for single image)',
 								'items'       => array(
@@ -112,44 +112,44 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 								),
 								'maxItems'    => 10,
 							),
-							'video_url'       => array(
+							'video_url'          => array(
 								'type'        => 'string',
 								'description' => 'Public video URL for Reel or Story publishing',
 								'format'      => 'uri',
 							),
-							'cover_url'       => array(
+							'cover_url'          => array(
 								'type'        => 'string',
 								'description' => 'Optional cover image URL for Reel',
 								'format'      => 'uri',
 							),
-							'share_to_feed'   => array(
+							'share_to_feed'      => array(
 								'type'        => 'boolean',
 								'description' => 'Whether to share the Reel to the main feed (default true)',
 								'default'     => true,
 							),
-							'story_image_url' => array(
+							'story_image_url'    => array(
 								'type'        => 'string',
 								'description' => 'Image URL for Story publishing (use this or video_url for stories)',
 								'format'      => 'uri',
 							),
-							'aspect_ratio'    => array(
+							'aspect_ratio'       => array(
 								'type'        => 'string',
 								'description' => 'Aspect ratio for images: 1:1, 4:5, 3:4, or 1.91:1',
 								'enum'        => array( '1:1', '4:5', '3:4', '1.91:1' ),
 								'default'     => '4:5',
 							),
-							'source_url'      => array(
+							'source_url'         => array(
 								'type'        => 'string',
 								'description' => 'Source URL to include in caption',
 								'format'      => 'uri',
 							),
-							'collaborators'   => array(
+							'collaborators'      => array(
 								'type'        => 'array',
 								'description' => 'Instagram usernames to invite as collaborators (up to 3)',
 								'maxItems'    => 3,
 								'items'       => array( 'type' => 'string' ),
 							),
-							'location_id'     => array(
+							'location_id'        => array(
 								'type'        => 'string',
 								'description' => 'Facebook Page ID of a place to tag as the post location (image, carousel, or reel). Stories do not support locations.',
 								'pattern'     => '^[0-9]+$',
@@ -167,13 +167,21 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 										'required'   => array( 'username', 'x', 'y' ),
 										'properties' => array(
 											'username' => array( 'type' => 'string' ),
-											'x'        => array( 'type' => 'number', 'minimum' => 0, 'maximum' => 1 ),
-											'y'        => array( 'type' => 'number', 'minimum' => 0, 'maximum' => 1 ),
+											'x'        => array(
+												'type'    => 'number',
+												'minimum' => 0,
+												'maximum' => 1,
+											),
+											'y'        => array(
+												'type'    => 'number',
+												'minimum' => 0,
+												'maximum' => 1,
+											),
 										),
 									),
 								),
 							),
-							'user_tags'       => array(
+							'user_tags'          => array(
 								'type'        => 'array',
 								'description' => 'People to tag in a single image, each with username, x, and y coordinates',
 								'maxItems'    => self::MAX_USER_TAGS,
@@ -182,8 +190,16 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 									'required'   => array( 'username', 'x', 'y' ),
 									'properties' => array(
 										'username' => array( 'type' => 'string' ),
-										'x'        => array( 'type' => 'number', 'minimum' => 0, 'maximum' => 1 ),
-										'y'        => array( 'type' => 'number', 'minimum' => 0, 'maximum' => 1 ),
+										'x'        => array(
+											'type'    => 'number',
+											'minimum' => 0,
+											'maximum' => 1,
+										),
+										'y'        => array(
+											'type'    => 'number',
+											'minimum' => 0,
+											'maximum' => 1,
+										),
 									),
 								),
 							),
@@ -250,9 +266,9 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 	 * @return array Response with post details or error.
 	 */
 	public static function execute_publish( array $input ): array|\WP_Error {
-		$content    = $input['content'] ?? '';
-		$media_kind = $input['media_kind'] ?? 'image';
-		$source_url = $input['source_url'] ?? '';
+		$content       = $input['content'] ?? '';
+		$media_kind    = $input['media_kind'] ?? 'image';
+		$source_url    = $input['source_url'] ?? '';
 		$collaborators = $input['collaborators'] ?? array();
 		if ( ! is_array( $collaborators ) || count( $collaborators ) > self::MAX_COLLABORATORS ) {
 			return new \WP_Error( 'invalid_collaborators', 'A maximum of 3 collaborators is allowed', array( 'status' => 400 ) );
@@ -278,7 +294,7 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 			}
 		}
 		$input['location_id'] = $location_id;
-		$tag_validation = self::validate_user_tags( $input, $media_kind );
+		$tag_validation       = self::validate_user_tags( $input, $media_kind );
 		if ( is_wp_error( $tag_validation ) ) {
 			return $tag_validation;
 		}
@@ -307,6 +323,7 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 
 		// Auth check.
 		$auth     = new AuthAbilities();
+		/** @var \DataMachineSocials\Handlers\Instagram\InstagramAuth|null $provider */
 		$provider = $auth->getProvider( 'instagram' );
 
 		if ( ! $provider || ! $provider->is_authenticated() ) {
@@ -349,8 +366,8 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 	 * @return true|\WP_Error
 	 */
 	private static function validate_user_tags( array $input, string $media_kind ): bool|\WP_Error {
-		$single_tags   = $input['user_tags'] ?? array();
-		$has_carousel  = array_key_exists( 'carousel_user_tags', $input );
+		$single_tags  = $input['user_tags'] ?? array();
+		$has_carousel = array_key_exists( 'carousel_user_tags', $input );
 		$image_urls   = $input['image_urls'] ?? array();
 		$image_count  = is_array( $image_urls ) ? count( $image_urls ) : 0;
 
@@ -371,16 +388,38 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 		foreach ( $slides as $index => $tags ) {
 			$slide = $index + 1;
 			if ( ! is_array( $tags ) || ! array_is_list( $tags ) || count( $tags ) > self::MAX_USER_TAGS ) {
-				return new \WP_Error( 'invalid_user_tags', sprintf( 'Slide %d tags must be an array of at most %d user tags', $slide, self::MAX_USER_TAGS ), array( 'status' => 400, 'slide' => $slide ) );
+				return new \WP_Error(
+					'invalid_user_tags',
+					sprintf( 'Slide %d tags must be an array of at most %d user tags', $slide, self::MAX_USER_TAGS ),
+					array(
+						'status' => 400,
+						'slide'  => $slide,
+					)
+				);
 			}
 			foreach ( $tags as $tag ) {
 				if ( ! is_array( $tag ) || ! isset( $tag['username'] ) || ! is_string( $tag['username'] ) || '' === trim( $tag['username'] ) ) {
-					return new \WP_Error( 'invalid_user_tags', sprintf( 'Slide %d user tags require a username', $slide ), array( 'status' => 400, 'slide' => $slide ) );
+					return new \WP_Error(
+						'invalid_user_tags',
+						sprintf( 'Slide %d user tags require a username', $slide ),
+						array(
+							'status' => 400,
+							'slide'  => $slide,
+						)
+					);
 				}
 				foreach ( array( 'x', 'y' ) as $coordinate ) {
 					$value = $tag[ $coordinate ] ?? null;
 					if ( ! ( is_int( $value ) || is_float( $value ) ) || ! is_finite( (float) $value ) || $value < 0 || $value > 1 ) {
-						return new \WP_Error( 'invalid_user_tags', sprintf( 'Slide %d tag @%s requires numeric x/y coordinates between 0 and 1', $slide, $tag['username'] ), array( 'status' => 400, 'slide' => $slide, 'username' => $tag['username'] ) );
+						return new \WP_Error(
+							'invalid_user_tags',
+							sprintf( 'Slide %d tag @%s requires numeric x/y coordinates between 0 and 1', $slide, $tag['username'] ),
+							array(
+								'status'   => 400,
+								'slide'    => $slide,
+								'username' => $tag['username'],
+							)
+						);
 					}
 				}
 			}
@@ -420,7 +459,11 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 			}
 			// Include all submitted usernames: Graph may not identify the rejected one.
 			$tag_context = empty( $tags ) ? '' : sprintf( ' (slide %d; submitted user tags: @%s)', $image_index + 1, implode( ', @', array_column( $tags, 'username' ) ) );
-			$error_data = array( 'status' => 500, 'slide' => $image_index + 1, 'usernames' => array_column( $tags, 'username' ) );
+			$error_data  = array(
+				'status'    => 500,
+				'slide'     => $image_index + 1,
+				'usernames' => array_column( $tags, 'username' ),
+			);
 
 			if ( $is_carousel ) {
 				$container_body['is_carousel_item'] = 'true';
@@ -843,6 +886,7 @@ class InstagramPublishAbility extends AbstractSocialAbility {
 	public static function get_account( array $input ): array|\WP_Error {
 		$input;
 		$auth     = new AuthAbilities();
+		/** @var \DataMachineSocials\Handlers\Instagram\InstagramAuth|null $provider */
 		$provider = $auth->getProvider( 'instagram' );
 
 		if ( ! $provider || ! $provider->is_authenticated() ) {
